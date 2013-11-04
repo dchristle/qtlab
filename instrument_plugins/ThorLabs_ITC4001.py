@@ -37,7 +37,7 @@ class ThorLabs_ITC4001(Instrument):
             units='A',
             minval=0, maxval=0.672,
             type=types.FloatType)
-        self.add_parameter('temperature',
+        self.add_parameter('temperatureSP',
             flags=Instrument.FLAG_GETSET,
             units='C',
             minval=15, maxval=32,
@@ -49,9 +49,14 @@ class ThorLabs_ITC4001(Instrument):
         self.add_parameter('TEC_status',
             flags=Instrument.FLAG_GETSET,
             type=types.IntType)
+        self.add_parameter('temperature',
+            units='C',
+            format='%.02f',
+            flags=Instrument.FLAG_GET,
+            type=types.IntType)
 
         self.add_function('reset')
-        self.add_function ('get_all')
+        self.add_function('get_all')
 
 
 
@@ -92,9 +97,10 @@ class ThorLabs_ITC4001(Instrument):
         '''
         logging.info(__name__ + ' : get all')
         self.get_current()
-        self.get_temperature()
+        self.get_temperatureSP()
         self.get_source_status()
         self.get_TEC_status()
+        self.get_actual_temperature()
 
     def do_get_current(self):
         '''
@@ -114,7 +120,7 @@ class ThorLabs_ITC4001(Instrument):
         Set the current to the laser diode
 
         Input:
-            amp (float) : power in ??
+            cur (float) : current setpoint
 
         Output:
             None
@@ -173,4 +179,42 @@ class ThorLabs_ITC4001(Instrument):
         '''
         logging.debug(__name__ + ' : get laser diode TEC status')
         return int(self._visainstrument.ask('OUTP1:STATE?'))
+    def do_get_temperatureSP(self):
+        '''
+        Reads temperature setpoint of the TEC
+
+        Input:
+            None
+
+        Output:
+            temperature (float) : 0 or 1
+        '''
+        logging.debug(__name__ + ' : get laser diode temperature setpoint')
+        return int(self._visainstrument.ask('OUTP1:STATE?'))
+    def do_set_temperatureSP(self, temperature):
+        '''
+        Sets temperature setpoint of the TEC
+
+        Input:
+            temperature (float) : 0 or 1
+
+        Output:
+            None
+        '''
+
+        logging.debug(__name__ + ' : set laser diode TEC to status %d' % TEC_status)
+        self._visainstrument.write('OUTP2:STATE %d' % temperature)
+    def do_get_temperature(self):
+        '''
+        Reads actual temperature of the laser diode
+
+        Input:
+            None
+
+        Output:
+            temperature (float) : actual temperature in C
+        '''
+        logging.debug(__name__ + ' : get actual temperature of laser diode')
+        self._visa.write('CONF:TEMP')
+        return float(self._visainstrument.ask('OUTP1:STATE?'))
 
