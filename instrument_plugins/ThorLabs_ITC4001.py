@@ -29,19 +29,26 @@ class ThorLabs_ITC4001(Instrument):
         
         self._address = address
         self._visainstrument = visa.instrument(self._address)
-        self._channels = self._get_number_of_channels()
-        Instrument.__init__(self, name, tags=['measure', 'example'])
+        Instrument.__init__(self, name, tags=['physical'])
 
-         # Add some global constants
-        self._address = address
-        self._visainstrument = visa.instrument(self._address)
 
         self.add_parameter('current',
-            flags=Instrument.FLAG_GETSET, units='dBm', minval=-135, maxval=16, type=types.FloatType)
+            flags=Instrument.FLAG_GETSET,
+            units='A',
+            minval=0, maxval=0.672,
+            type=types.FloatType)
         self.add_parameter('temperature',
-            flags=Instrument.FLAG_GETSET, units='rad', minval=-numpy.pi, maxval=numpy.pi, type=types.FloatType)
-        self.add_parameter('status',
-            flags=Instrument.FLAG_GETSET, type=types.StringType)
+            flags=Instrument.FLAG_GETSET,
+            units='C',
+            minval=15, maxval=32,
+            format='%.02f',
+            type=types.FloatType)
+        self.add_parameter('source_status',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType)
+        self.add_parameter('TEC_status',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType)
 
         self.add_function('reset')
         self.add_function ('get_all')
@@ -86,7 +93,8 @@ class ThorLabs_ITC4001(Instrument):
         logging.info(__name__ + ' : get all')
         self.get_current()
         self.get_temperature()
-        self.get_status()
+        self.get_source_status()
+        self.get_TEC_status()
 
     def do_get_current(self):
         '''
@@ -128,7 +136,15 @@ class ThorLabs_ITC4001(Instrument):
         return int(self._visainstrument.ask('OUTP1:STATE?'))
 
     def do_set_source_status(self, source_status):
+        '''
+        Sets status of current source ON/OFF from the driver
 
+        Input:
+            source_status (integer) : 0 or 1
+
+        Output:
+            None
+        '''
 
         logging.debug(__name__ + ' : set laser diode current source to status %d' % source_status)
         self._visainstrument.write('OUTP1:STATE %d' % source_status)
@@ -157,44 +173,4 @@ class ThorLabs_ITC4001(Instrument):
         '''
         logging.debug(__name__ + ' : get laser diode TEC status')
         return int(self._visainstrument.ask('OUTP1:STATE?'))
-    def do_get_value1(self):
-        return self._dummy_value1
-
-    def do_get_value2(self):
-        return self._dummy_value2
-
-    def do_set_output1(self, val):
-        self._dummy_output1 = val
-
-    def do_get_status(self):
-        return self._dummy_status
-
-    def do_set_status(self, val):
-        self._dummy_status = val
-
-    def do_get_speed(self):
-        return self._dummy_speed
-
-    def do_set_speed(self, val):
-        self._dummy_speed = val
-
-    def do_get_input(self, channel):
-        return self._dummy_input[channel-1]
-
-    def do_get_output(self, channel):
-        return self._dummy_output[channel]
-
-    def do_set_output(self, val, channel, times2=False):
-        if times2:
-            val *= 2
-        self._dummy_output[channel] = val
-
-    def do_set_gain(self, val):
-        self._dummy_gain = val
-
-    def step(self, channel, stepsize=0.1):
-        '''Step channel <channel>'''
-        print 'Stepping channel %s by %f' % (channel, stepsize)
-        cur = self.get('ch%s_output' % channel, query=False)
-        self.set('ch%s_output' % channel, cur + stepsize)
 
