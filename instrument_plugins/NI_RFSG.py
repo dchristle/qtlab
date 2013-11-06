@@ -97,14 +97,17 @@ class NI_RFSG(Instrument):
 
 
         self.add_parameter('power',
-            flags=Instrument.FLAG_SET, units='dBm', minval=-135, maxval=8, type=types.FloatType)
+            flags=Instrument.FLAG_SET, units='dBm', minval=-135, maxval=8, type=types.FloatType, tags=['sweep'])
         self.add_parameter('frequency',
-            flags=Instrument.FLAG_SET, units='Hz', minval=1e5, maxval=6e9, type=types.FloatType)
+            flags=Instrument.FLAG_SET, units='Hz', minval=1e5, maxval=6e9, type=types.FloatType, format='%.04e', tags=['sweep'])
         self.add_parameter('status',
             flags=Instrument.FLAG_GETSET, type=types.StringType)
 
+        # Add other functions
         self.add_function('reset')
         self.add_function ('get_all')
+        self.add_function('on')
+        self.add_function('off')
 
         # Define default values of frequency and power. These are internal
         # properties that are kept track of in self._freq and self._power.
@@ -168,9 +171,7 @@ class NI_RFSG(Instrument):
             None
         '''
         logging.info(__name__ + ' : get all')
-#         self.get_power()
-#         self.get_frequency()
-#         self.get_status()
+        self.get_status()
         return 0
 
     def do_set_frequency(self, freq):
@@ -191,6 +192,8 @@ class NI_RFSG(Instrument):
         retVal = nfsglib.niRFSG_ConfigureRF(self._viSession,virFreq,virPower)
         if retVal == 0:
             self._freq = freq
+        else:
+            logging.debug(__name__ + ' returned value of %s in error' % retVal)
         return retVal
 
     def do_set_power(self, power):
@@ -198,7 +201,7 @@ class NI_RFSG(Instrument):
         Set the power of the signal
 
         Input:
-            amp (float) : power in ??
+            power (float) : power in dBm
 
         Output:
             None
@@ -234,7 +237,7 @@ class NI_RFSG(Instrument):
             abVal = nfsglib.niRFSG_Abort(self._viSession)
             return ((disVal == 0) and (abVal == 0))
         else:
-            logging.debug('Set status error: %s' % status)
+            logging.error('Set status error: %s' % status)
         return
 
     def do_get_status(self):
@@ -256,7 +259,7 @@ class NI_RFSG(Instrument):
         elif (isDone.value == 1):
             return 'off'
         else:
-            logging.debug('Check Generation Status Error: %s' % retVal)
+            logging.error('Check Generation Status Error: %s' % retVal)
         return -1
 
     # shortcuts
