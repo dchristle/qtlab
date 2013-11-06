@@ -193,7 +193,7 @@ class ThorLabs_ITC4001(Instrument):
         Sets temperature setpoint of the TEC
 
         Input:
-            temperature (float) : temperature in C
+            temperature (float) : setpoint temperature in C
 
         Output:
             None
@@ -209,7 +209,7 @@ class ThorLabs_ITC4001(Instrument):
             None
 
         Output:
-            temperature (float) : temperature in C
+            temperature (float) : setpoint temperature in C
         '''
 
         logging.debug(__name__ + ' : getting laser TEC setpoint')
