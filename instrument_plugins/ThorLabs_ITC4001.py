@@ -6,11 +6,12 @@ import visa
 import types
 import logging
 import numpy
+import qt
 
 class ThorLabs_ITC4001(Instrument):
 
-    def __init__(self, name, address=None, reset=False):
-        
+    def __init__(self, name, address='USB0::0x1313::0x804A::M00277475::INSTR', reset=False):
+
         '''
         Initializes the ThorLabs_ITC4001, and communicates with the wrapper.
 
@@ -24,9 +25,9 @@ class ThorLabs_ITC4001(Instrument):
         '''
 
         Instrument.__init__(self, name, tags=['physical'])
-        
+
         logging.info(__name__ + ' : Initializing instrument ThorLabs_ITC4001')
-        
+
         self._address = address
         self._visainstrument = visa.instrument(self._address)
         Instrument.__init__(self, name, tags=['physical'])
@@ -41,7 +42,6 @@ class ThorLabs_ITC4001(Instrument):
             flags=Instrument.FLAG_GETSET,
             units='C',
             minval=15, maxval=32,
-            format='%.02f',
             type=types.FloatType)
         self.add_parameter('source_status',
             flags=Instrument.FLAG_GETSET,
@@ -50,10 +50,9 @@ class ThorLabs_ITC4001(Instrument):
             flags=Instrument.FLAG_GETSET,
             type=types.IntType)
         self.add_parameter('temperature',
-            units='C',
-            format='%.02f',
+            units='C',format='%.2f',
             flags=Instrument.FLAG_GET,
-            type=types.IntType)
+            type=types.FloatType)
 
         self.add_function('reset')
         self.add_function('get_all')
@@ -97,10 +96,10 @@ class ThorLabs_ITC4001(Instrument):
         '''
         logging.info(__name__ + ' : get all')
         self.get_current()
-        self.get_temperatureSP()
         self.get_source_status()
         self.get_TEC_status()
-        self.get_actual_temperature()
+        self.get_temperature()
+        self.get_temperatureSP()
 
     def do_get_current(self):
         '''
@@ -151,9 +150,18 @@ class ThorLabs_ITC4001(Instrument):
         Output:
             None
         '''
-
-        logging.debug(__name__ + ' : set laser diode current source to status %d' % source_status)
-        self._visainstrument.write('OUTP1:STATE %d' % source_status)
+        # Check if TEC is on before enabling laser
+        current_TEC_status = self.do_get_TEC_status()
+        if current_TEC_status == 0:
+            logging.error(__name__ + 'current source could not be set -- TEC is off. TEC status: %s' % current_TEC_status)
+            return -1
+        elif current_TEC_status == 1:
+            logging.debug(__name__ + ' : set laser diode current source to status %d' % source_status)
+            self._visainstrument.write('OUTP1:STATE %d' % source_status)
+            return 0
+        else:
+            logging.error(__name__ + 'unknown TEC status!')
+            return -2
     def do_set_TEC_status(self, TEC_status):
         '''
         Sets status of current source ON/OFF from the driver
@@ -178,32 +186,34 @@ class ThorLabs_ITC4001(Instrument):
             TEC_status (integer) : 0 or 1
         '''
         logging.debug(__name__ + ' : get laser diode TEC status')
-        return int(self._visainstrument.ask('OUTP1:STATE?'))
-    def do_get_temperatureSP(self):
-        '''
-        Reads temperature setpoint of the TEC
+        return int(self._visainstrument.ask('OUTP2:STATE?'))
 
-        Input:
-            None
-
-        Output:
-            temperature (float) : 0 or 1
-        '''
-        logging.debug(__name__ + ' : get laser diode temperature setpoint')
-        return int(self._visainstrument.ask('OUTP1:STATE?'))
     def do_set_temperatureSP(self, temperature):
         '''
         Sets temperature setpoint of the TEC
 
         Input:
-            temperature (float) : 0 or 1
+            temperature (float) : temperature in C
 
         Output:
             None
         '''
 
-        logging.debug(__name__ + ' : set laser diode TEC to status %d' % TEC_status)
-        self._visainstrument.write('OUTP2:STATE %d' % temperature)
+        logging.debug(__name__ + ' : set laser diode TEC to temperature setpoint %d' % temperature)
+        self._visainstrument.write('SOUR2:TEMP:SPO %d' % temperature)
+    def do_get_temperatureSP(self):
+        '''
+        Gets temperature setpoint of the TEC
+
+        Input:
+            None
+
+        Output:
+            temperature (float) : temperature in C
+        '''
+
+        logging.debug(__name__ + ' : getting laser TEC setpoint')
+        return float(self._visainstrument.ask('SOUR2:TEMP:SPO?'))
     def do_get_temperature(self):
         '''
         Reads actual temperature of the laser diode
@@ -215,6 +225,22 @@ class ThorLabs_ITC4001(Instrument):
             temperature (float) : actual temperature in C
         '''
         logging.debug(__name__ + ' : get actual temperature of laser diode')
-        self._visa.write('CONF:TEMP')
-        return float(self._visainstrument.ask('OUTP1:STATE?'))
+        return float(self._visainstrument.ask('MEAS:TEMP?'))
+
+    # Now add some shortcut functions
+
+    def on(self):
+        logging.debug(__name__ + 'turning laser on using shortcut on function')
+        self.set_TEC_status(1)
+        qt.msleep(3)
+        self.set_source_status(1)
+        return
+
+    def off(self):
+        logging.debug(__name__ + 'turning laser off using shortcut off function')
+        self.set_source_status(0)
+        qt.msleep(5)
+        self.set_TEC_status(0)
+        return
+
 
