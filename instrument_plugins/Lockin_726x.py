@@ -72,9 +72,9 @@ class Lockin_726x(Instrument):
         self.add_parameter('Y',
             flags=Instrument.FLAG_GET,
             units='V', minval=0, maxval=10, type=types.FloatType)
-        self.add_parameter('XY',
-            flags=Instrument.FLAG_GET,
-            units='V', minval=0, maxval=10, type=types.FloatType)
+##        self.add_parameter('XY',
+##            flags=Instrument.FLAG_GET,
+##            units='V', minval=0, maxval=10, type=types.FloatType)
         self.add_parameter('frequency',
             flags=Instrument.FLAG_GET,
             units='Hz', minval=0, maxval=10, type=types.FloatType)
@@ -82,51 +82,51 @@ class Lockin_726x(Instrument):
             flags=Instrument.FLAG_SET,
             units='dB', minval=0, maxval=9, type=types.FloatType,
             format_map={
-               0: 0,
-               1: 10,
-               2: 20,
-               3: 30,
-               4: 40,
-               5: 50,
-               6: 60,
-               7: 70,
-               8: 80,
-               9: 90,
+               0: '0dB',
+               1: '10dB',
+               2: '20dB',
+               3: '30dB',
+               4: '40dB',
+               5: '50dB',
+               6: '60dB',
+               7: '70dB',
+               8: '80dB',
+               9: '90dB',
             })
         self.add_parameter('TC',
             flags=Instrument.FLAG_GETSET,
-            units='s', minval=0, maxval=10, type=types.FloatType,
+            units='s', minval=0, maxval=29, type=types.FloatType,
             format_map={
-               0: 10e-6,
-               1: 20e-6,
-               2: 40e-6,
-               3: 80e-6,
-               4: 160e-6,
-               5: 320e-6,
-               6: 640e-6,
-               7: 5e-3,
-               8: 10e-3,
-               9: 20e-3,
-               10: 50e-3,
-               11: 100e-3,
-               12: 200e-3,
-               13: 500e-3,
-               14: 1,
-               15: 2,
-               16: 5,
-               17: 10,
-               18: 20,
-               19: 50,
-               20: 100,
-               21: 200,
-               22: 500,
-               23: 1e3,
-               24: 2e3,
-               25: 5e3,
-               26: 10e3,
-               27: 20e3,
-               28: 50e3,
-               29: 100e3,
+               0: '10e-6s',
+               1: '20e-6s',
+               2: '40e-6s',
+               3: '80e-6s',
+               4: '160e-6s',
+               5: '320e-6s',
+               6: '640e-6s',
+               7: '5e-3s',
+               8: '10e-3s',
+               9: '20e-3s',
+               10: '50e-3s',
+               11: '100e-3s',
+               12: '200e-3s',
+               13: '500e-3s',
+               14: '1s',
+               15: '2s',
+               16: '5s',
+               17: '10s',
+               18: '20s',
+               19: '50s',
+               20: '100s',
+               21: '200s',
+               22: '500s',
+               23: '1e3s',
+               24: '2e3s',
+               25: '5e3s',
+               26: '10e3s',
+               27: '20e3s',
+               28: '50e3s',
+               29: '100e3s',
            })
 
 
@@ -219,20 +219,19 @@ class Lockin_726x(Instrument):
         ans = self._visa.ask('Y.')
         return float(ans)
 
-    def do_get_XY(self):
+    def get_XY(self):
         '''
         Read X& Y values simultaneously
         '''
         ans = self._visa.ask('XY.')
-        XYvals = [int(x) for x in ans.split(",")]
-        return float(XYvals)
+        XYvals = [float(x) for x in ans.split(",")]
+        return XYvals
 
     def do_set_TC(self,TCval):
         '''
         Write Time Constant (TC) value
         '''
-        ans = self._visa.write('TC%d' % setTCnum)
-        return float(ans)
+        self._visa.write('TC%d' % TCval)
 
     def do_get_TC(self):
         '''
@@ -252,9 +251,8 @@ class Lockin_726x(Instrument):
         '''
         Set gain (dB)
         '''
-        ans = self._visa.write('AUTOMATIC')
-        ans = self._visa.write('ACGAIN%d' % Gain)
-
+        ans = self._visa.write('AUTOMATIC0')
+        ans = self._visa.write('ACGAIN %d' % Gain)
 
 ##    def do_set_Gain(self,Gain):
 ##        '''
