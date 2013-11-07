@@ -1,10 +1,5 @@
-# Keithley_2700.py driver for Keithley 2700 DMM
-# Pieter de Groot <pieterdegroot@gmail.com>, 2008
-# Martijn Schaafsma <qtlab@mcschaafsma.nl>, 2008
-# Reinier Heeres <reinier@heeres.eu>, 2008
-#
-# Update december 2009:
-# Michiel Jol <jelle@michieljol.nl>
+# Lockin_726x.py driver for EG&G/Signal Recovery 726x Lock-in Amplifier
+# F. J. Heremans <jhereman@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,39 +24,6 @@ import numpy
 import qt
 
 
-TC_array =[
-    (10e-6, 0),
-    (20e-6, 1),
-    (40e-6, 2),
-    (80e-6, 3),
-    (160e-6, 4),
-    (320e-6, 5),
-    (640e-6, 6),
-    (5e-3, 7),
-    (10e-3, 8),
-    (20e-3, 9),
-    (50e-3, 10),
-    (100e-3, 11),
-    (200e-3, 12),
-    (500e-3, 13),
-    (1, 14),
-    (2, 15),
-    (5, 16),
-    (10, 17),
-    (20, 18),
-    (50, 19),
-    (100, 20),
-    (200, 21),
-    (500, 22),
-    (1e3, 23),
-    (2e3, 24),
-    (5e3, 25),
-    (10e3, 26),
-    (20e3, 27),
-    (50e3, 28),
-    (100e3, 29),
-]
-
 
 def bool_to_str(val):
     '''
@@ -72,7 +34,7 @@ def bool_to_str(val):
     else:
         return "OFF"
 
-class LOCKIN_7265(Instrument):
+class Lockin_726x(Instrument):
     '''
     This is the driver for the EG&G/Signal Recovery 726x class of Lock-in Amplifiers
 
@@ -106,23 +68,70 @@ class LOCKIN_7265(Instrument):
         # Add parameters to wrapper
         self.add_parameter('X',
             flags=Instrument.FLAG_GET,
-            units='', minval=0, maxval=10, type=types.FloatType)
+            units='V', minval=0, maxval=10, type=types.FloatType)
         self.add_parameter('Y',
             flags=Instrument.FLAG_GET,
-            units='', minval=0, maxval=10, type=types.FloatType)
+            units='V', minval=0, maxval=10, type=types.FloatType)
         self.add_parameter('XY',
             flags=Instrument.FLAG_GET,
-            units='', minval=0, maxval=10, type=types.FloatType)
-        self.add_parameter('Gain',
-            flags=Instrument.FLAG_GETSET,
-            units='', minval=0, maxval=10, type=types.FloatType)
+            units='V', minval=0, maxval=10, type=types.FloatType)
+        self.add_parameter('frequency',
+            flags=Instrument.FLAG_GET,
+            units='Hz', minval=0, maxval=10, type=types.FloatType)
+        self.add_parameter('gain',
+            flags=Instrument.FLAG_SET,
+            units='dB', minval=0, maxval=9, type=types.FloatType,
+            format_map={
+               0: 0,
+               1: 10,
+               2: 20,
+               3: 30,
+               4: 40,
+               5: 50,
+               6: 60,
+               7: 70,
+               8: 80,
+               9: 90,
+            })
         self.add_parameter('TC',
             flags=Instrument.FLAG_GETSET,
-            units='', minval=0, maxval=10, type=types.FloatType)
+            units='s', minval=0, maxval=10, type=types.FloatType,
+            format_map={
+               0: 10e-6,
+               1: 20e-6,
+               2: 40e-6,
+               3: 80e-6,
+               4: 160e-6,
+               5: 320e-6,
+               6: 640e-6,
+               7: 5e-3,
+               8: 10e-3,
+               9: 20e-3,
+               10: 50e-3,
+               11: 100e-3,
+               12: 200e-3,
+               13: 500e-3,
+               14: 1,
+               15: 2,
+               16: 5,
+               17: 10,
+               18: 20,
+               19: 50,
+               20: 100,
+               21: 200,
+               22: 500,
+               23: 1e3,
+               24: 2e3,
+               25: 5e3,
+               26: 10e3,
+               27: 20e3,
+               28: 50e3,
+               29: 100e3,
+           })
 
 
         # Add functions to wrapper
-        self.add_function('get_XY')
+##        self.add_function('get_XY')
         self.add_function('autophase')
         self.add_function('get_all')
 
@@ -147,7 +156,7 @@ class LOCKIN_7265(Instrument):
             None
         '''
         logging.debug('Resetting instrument')
-        self._visainstrument.write('*RST')
+        self._visa.write('*RST')
         self.get_all()
 
     def set_defaults(self):
@@ -170,9 +179,7 @@ class LOCKIN_7265(Instrument):
         self.get_X()
         self.get_Y()
         self.get_TC()
-        self.get_Gain()
-
-
+        self.get_frequency()
 
     def reset_trigger(self):
         '''
@@ -185,65 +192,79 @@ class LOCKIN_7265(Instrument):
             None
         '''
         logging.debug('Resetting trigger')
-        self._visainstrument.write(':ABOR')
+        self._visa.write(':ABOR')
+
+    def autophase(self):
+        '''
+        Run an autophase
+        '''
+        logging.debug('Run Autophase (Auto Quadrature Null)')
+        self._visa.write('AQN')
 
 
 # --------------------------------------
 #           parameters
 # --------------------------------------
-
-
-     def do_get_X(self):
+    def do_get_X(self):
         '''
         Read X value
         '''
         ans = self._visa.ask('X.')
         return float(ans)
 
-     def do_get_Y(self):
+    def do_get_Y(self):
         '''
-        Read X value
+        Read Y value
         '''
         ans = self._visa.ask('Y.')
         return float(ans)
 
-     def do_get_XY(self):
+    def do_get_XY(self):
         '''
         Read X& Y values simultaneously
         '''
         ans = self._visa.ask('XY.')
-        XYvals = [int(x) for x in ans.split(";")]
+        XYvals = [int(x) for x in ans.split(",")]
         return float(XYvals)
 
-     def do_set_TC(self,TCval):
+    def do_set_TC(self,TCval):
         '''
         Write Time Constant (TC) value
         '''
-
-
-        pos = bisect.bisect_right(TC_array[:,1], (TCval,))
-        setTCnum = TC_array[pos]
-        print '%s -> %s' % (TCval, setTCnum)
-
         ans = self._visa.write('TC%d' % setTCnum)
         return float(ans)
 
-     def do_get_TC(self):
+    def do_get_TC(self):
         '''
         Read Time Constant (TC) value
         '''
         ans = self._visa.ask('TC.')
         return float(ans)
 
-    def do_set_Gain(self,Gain):
+    def do_get_frequency(self):
         '''
-        Write Gain value
+        Read frequency value (Hz)
         '''
-        ans = self._visa.write('ACGAIN%d' % Gain)
+        ans = self._visa.ask('FRQ.')
         return float(ans)
 
-    def do_get_Gain(self)
+    def do_set_gain(self,Gain):
         '''
-        Read Gain value
+        Set gain (dB)
         '''
-        ans = self.visa.ask(ACGAIN.)
+        ans = self._visa.write('AUTOMATIC')
+        ans = self._visa.write('ACGAIN%d' % Gain)
+
+
+##    def do_set_Gain(self,Gain):
+##        '''
+##        Write Gain value
+##        '''
+##        ans = self._visa.write('ACGAIN%d' % Gain)
+##        return float(ans)
+##
+##    def do_get_Gain(self)
+##        '''
+##        Read Gain value
+##        '''
+##        ans = self.visa.ask(ACGAIN.)
