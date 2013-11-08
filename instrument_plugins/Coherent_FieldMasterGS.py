@@ -87,12 +87,15 @@ class Coherent_FieldMasterGS(Instrument):
         '''
         logging.debug(__name__ + ' : Closing serial connection')
         self._visa.close()
-    def buffer_clear(self): #in case of buffer jamming
+
+    def buffer_clear(self): # This command is intended to read_raw the buffer.
         while True:
             try:
                 self._visa.read_raw()
 
             except(pyvisa.vpp43.visa_exceptions.VisaIOError):
+                # If it times out, that's OK - we just want it to return
+                # gracefully.
                 break
 
     def reset(self):
