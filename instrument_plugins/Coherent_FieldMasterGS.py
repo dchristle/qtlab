@@ -100,6 +100,7 @@ class Coherent_FieldMasterGS(Instrument):
 
     def reset(self):
         self._visa.write('*rst')
+        time.sleep(3) # Sleep to avoid trying to talk to the device too quickly
 
     def get_all(self):
         self.get_detectortype()
