@@ -73,7 +73,12 @@ class Coherent_FieldMasterGS(Instrument):
         self._visa = pyvisa.visa.SerialInstrument(self._address,
                 baud_rate=9600, data_bits=8, stop_bits=1,
                 parity=pyvisa.visa.no_parity, term_chars=pyvisa.visa.CR+pyvisa.visa.LF,
-                send_end=False)
+                send_end=False,timeout=0.25)
+        # The purpose of the short timeout is so that the buffer_clear()
+        # operation that takes place with every command to ensure the proper
+        # output doesn't take too long. Each buffer_clear() usually takes one
+        # entire timeout period, since most of the time, the buffer is in fact
+        # clear.
 
     # Close serial connection
     def _close_serial_connection(self):
