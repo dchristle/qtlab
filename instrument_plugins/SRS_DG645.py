@@ -83,7 +83,6 @@ class SRS_DG645(Instrument):
                 9: 'H',
             })
 
-
         self.add_parameter('amplitude',
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
@@ -112,13 +111,40 @@ class SRS_DG645(Instrument):
 
         self.add_parameter('polarity',
             flags=Instrument.FLAG_GETSET,
-            type=types.FloatType,
+            type=types.IntType,
             channels=('AB', 'CD','EF','GH'),
-            minval=-2, maxval=2,units = 'V',
+            minval=0, maxval=1,units = 'V',
             format_map = {
                 0: 'neg',
                 1: 'pos',
             })
+
+
+        self.add_parameter('trig_source',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType,
+            minval=0, maxval=6,units = '',
+            format_map = {
+                0: 'internal',
+                1: 'external_rising_edge',
+                2: 'external_falling_edge',
+                3: 'single_shot_external_rising_edge',
+                4: 'single_shot_external_falling_edge',
+                5: 'single_shot',
+                6: 'line'
+            })
+
+        self.add_parameter('trig_rate',
+            flags=Instrument.FLAG_GETSET,
+            type=types.FloatType,
+            minval=100e-6, maxval=10e6,units = 'Hz',
+            )
+
+        self.add_parameter('trig_level',
+            flags=Instrument.FLAG_GETSET,
+            type=types.FloatType,
+            minval=0, maxval=3.5,units = 'V',
+            )
 
         # Add functions to wrapper
         self.add_function('set_z_high')
@@ -242,3 +268,43 @@ class SRS_DG645(Instrument):
         '''
         ans = self._visa.ask('LPOL?%d' % channel)
         return float(ans)
+
+    def do_set_trig_source(self,source):
+        '''
+        Write trigger source
+        '''
+        self._visa.ask('TSRC %d' % source)
+
+    def do_get_trig_source(self):
+        '''
+        Read trigger source
+        '''
+        ans = self._visa.ask('LTSRC?')
+        return float(ans)
+
+    def do_set_trig_rate(self,rate):
+        '''
+        Write internal trigger rate
+        '''
+        self._visa.ask('TRAT %d' % rate)
+
+    def do_get_trig_rate(self):
+        '''
+        Read internal trigger rate
+        '''
+        ans = self._visa.ask('TRAT?')
+        return float(ans)
+
+    def do_set_trig_level(self,source):
+        '''
+        Write trigger level
+        '''
+        self._visa.ask('TLVL %d' % source)
+
+    def do_get_trig_level(self):
+        '''
+        Read trigger level
+        '''
+        ans = self._visa.ask('TLVL?')
+        return float(ans)
+
