@@ -230,10 +230,48 @@ class ThorLabs_ITC4001(Instrument):
     # Now add some shortcut functions
 
     def on(self):
+        tol = 0.15 # This is the tolerance in C we wait to achieve
         logging.debug(__name__ + 'turning laser on using shortcut on function')
         self.set_TEC_status(1)
-        qt.msleep(3)
-        self.set_source_status(1)
+        tempSP = self.do_get_temperatureSP()
+        qt.msleep(1)
+        total_time = 0
+        within = 0
+        while within < 3: # Achieve tolerance for three seconds
+            current_temp = self.do_get_temperature()
+            ## print 'Current temp %s' % current_temp
+            if abs(current_temp-tempSP) < tol:
+                within = within + 1
+            else:
+                within = 0
+            qt.msleep(1)
+            total_time = total_time + 1
+            if total_time > 20:
+                logging.error(__name__ + 'did not achieve setpoint within 20 s, breaking')
+                break
+
+        # now set the laser on
+
+        if total_time < 20:
+            self.set_source_status(1)
+            total_time = 0
+            within = 0
+            while within < 5: # Achieve tolerance for 5 seconds
+                current_temp = self.do_get_temperature()
+                ## print 'Current temp %s' % current_temp
+                if abs(current_temp-tempSP) < tol:
+                  within = within + 1
+                else:
+                 within = 0
+                qt.msleep(1)
+                total_time = total_time + 1
+                if total_time > 20:
+                  logging.error(__name__ + 'did not achieve setpoint within 20 s, breaking')
+                  self.set_source_status(0)
+                  qt.msleep(5)
+                  self.set_TEC_status(0)
+                  break
+
         return
 
     def off(self):

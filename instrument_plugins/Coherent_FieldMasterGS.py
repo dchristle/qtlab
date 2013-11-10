@@ -89,6 +89,7 @@ class Coherent_FieldMasterGS(Instrument):
         self._visa.close()
 
     def buffer_clear(self): # This command is intended to read_raw the buffer.
+        logging.debug(__name__ + 'resetting buffer loop starting')
         while True:
             try:
                 self._visa.read_raw()
