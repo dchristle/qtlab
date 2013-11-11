@@ -1,5 +1,6 @@
 # SRS_DG645.py driver for SRS DG645 Digital Delay Generator
 # F. J. Heremans <jhereman@gmail.com>
+# David Christle <christle@uchicago.edu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,9 +35,9 @@ def bool_to_str(val):
     else:
         return "OFF"
 
-class SRS_DG645(Instrument):
+class SR_DG645(Instrument):
     '''
-    This is the driver for the SRS DG645 Digital Delay Generator
+    This is the driver for the SR DG645 Digital Delay Generator
 
     Usage:
     Initialize with
@@ -69,7 +70,12 @@ class SRS_DG645(Instrument):
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
             channels=('T0','T1','A','B','C','D','E','F','G'),
-            minval=0, maxval=2000,units = 's',
+            minval=0, maxval=2000,units = 's')
+
+        self.add_parameter('reference',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType,
+            channels=('T0','T1','A','B','C','D','E','F','G'),
             format_map = {
                 0: 'T0',
                 1: 'T1',
@@ -209,71 +215,130 @@ class SRS_DG645(Instrument):
         Set output impedance to 50 Ohm
         '''
 
+    # This function converts a string channel to a number
+    def _channel_num(self, channel):
+        if type(channel) == types.IntType:
+            return channel
+        elif type(channel) == types.StringType:
+            nummap = {'T0': 0,
+                'T1': 1,
+                'A': 2,
+                'B': 3,
+                'C': 4,
+                'D': 5,
+                'E': 6,
+                'F': 7,
+                'G': 8,
+                'H': 9 }
+            return nummap.get(channel.upper(), None)
+        else:
+            return None
+    # This function converts a string output to a number
+    def _output_num(self, output):
+        if type(output) == types.IntType:
+            return output
+        elif type(output) == types.StringType:
+            nummap = {'T0': 0,
+            'AB': 1,
+            'CD': 2,
+            'EF': 3,
+            'GH': 4}
+            return nummap.get(output.upper(), None)
+        else:
+            return None
 # --------------------------------------
 #           parameters
 # --------------------------------------
-    def do_set_delay(self,channel,ref,delay_time):
+    def do_set_delay(self,channel,delay_time):
         '''
         Write delay for given channel
         '''
-        self._visa.ask('DLAY %d,%d,%f' % (channel,ref,delay_time))
+        # Get reference, use it to write delay
+        ref = self.do_get_reference(self, channel)
+        self._visa.write('DLAY %d,%d,%.12e' % (self._channel_num(channel),self._channel_num(ref),delay_time))
+        return
 
     def do_get_delay(self,channel):
         '''
         Read delay for given channel
         '''
-        ans = self._visa.ask('DLAY?%d' % channel)
-        return float(ans)
+        ans = self._visa.ask('DLAY?%d' % self._channel_num(channel))
+        lhs, delay = ans.split(",", 1)
+        return float(delay)
 
-    def do_set_amplitude(self,channel,ampl):
+    def do_get_reference(self, channel):
+        '''
+        Read delay reference for given channel
+        '''
+        ans = self._visa.ask('DLAY?%d' % self._channel_num(channel))
+        ref, rhs = ans.split(",", 1)
+        return int(ref)
+
+    def do_set_reference(self, ref, channel):
+        '''
+        Set delay reference for given channel
+        '''
+        # First, get the existing delay time
+        ans = self.do_get_delay(self,channel)
+        # Split the response to get just the delay time
+        lhs, delay_time = ans.split(",", 1)
+        # Now set the reference with the same delay time
+        self._visa.write('DLAY %d,%d,%.12e' % (self._channel_num(channel),self._channel_num(ref),delay_time))
+        return
+
+    def do_set_amplitude(self,output,ampl):
         '''
         Write level amplitude for given channel
          - may want to add some error checkign to make sure
          amplitude + offset does not exceed 6V
         '''
-        self._visa.ask('LAMP %d,%f' % (channel,ampl))
+        self._visa.write('LAMP %d,%f' % (self._output_num(edge),ampl))
+        return
 
 
-    def do_get_amplitude(self,channel):
+    def do_get_amplitude(self,output):
         '''
         Read level amplitude for given channel
         '''
-        ans = self._visa.ask('LAMP?%d' % channel)
+        ans = self._visa.ask('LAMP?%d' % self._output_num(edge))
         return float(ans)
 
-    def do_set_offset(self,channel,offs):
+    def do_set_offset(self,output,offs):
         '''
         Write level offset for given channel
         - may want to add some error checkign to make sure
          amplitude + offset does not exceed 6V
         '''
-        self._visa.ask('LOFF %d,%f' % (channel,offs))
+        self._visa.write('LOFF %d,%f' % (self._output_num(output),offs))
+        return
 
-    def do_get_offset(self,channel):
+    def do_get_offset(self,output):
         '''
         Read level offset for given channel
         '''
-        ans = self._visa.ask('LOFF?%d' % channel)
+        ans = self._visa.ask('LOFF?%d' % self._output_num(output))
         return float(ans)
 
-    def do_set_polarity(self,channel,pol):
+    def do_set_polarity(self,output,pol):
         '''
         Write level polarity for given channel
         '''
-        self._visa.ask('LPOL %d,%f' % (channel,pol))
+        self._visa.write('LPOL %d,%f' % (self._output_num(output),pol))
+        return
 
-    def do_get_polarity(self,channel):
+    def do_get_polarity(self,output):
         '''
         Read level polarity for given channel
         '''
-        ans = self._visa.ask('LPOL?%d' % channel)
+        ans = self._visa.ask('LPOL?%d' % self._output_num(output))
         return float(ans)
 
     def do_set_trig_source(self,source):
         '''
         Write trigger source
         '''
-        self._visa.ask('TSRC %d' % source)
+        self._visa.write('TSRC %d' % source)
+        return
 
     def do_get_trig_source(self):
         '''
@@ -286,7 +351,8 @@ class SRS_DG645(Instrument):
         '''
         Write internal trigger rate
         '''
-        self._visa.ask('TRAT %d' % rate)
+        self._visa.write('TRAT %d' % rate)
+        return
 
     def do_get_trig_rate(self):
         '''
@@ -299,7 +365,8 @@ class SRS_DG645(Instrument):
         '''
         Write trigger level
         '''
-        self._visa.ask('TLVL %d' % source)
+        self._visa.write('TLVL %d' % source)
+        return
 
     def do_get_trig_level(self):
         '''
