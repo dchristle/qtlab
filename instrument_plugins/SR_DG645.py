@@ -241,7 +241,7 @@ class SR_DG645(Instrument):
         Write delay for given channel
         '''
         # Get reference, use it to write delay
-        ref = self.do_get_reference(self, channel)
+        ref = self.do_get_reference(channel)
         self._visa.write('DLAY %d,%d,%.12e' % (self._channel_num(channel),self._channel_num(ref),delay_time))
         return
 
@@ -266,7 +266,7 @@ class SR_DG645(Instrument):
         Set delay reference for given channel
         '''
         # First, get the existing delay time
-        ans = self.do_get_delay(self,channel)
+        ans = self.do_get_delay(channel)
         # Split the response to get just the delay time
         lhs, delay_time = ans.split(",", 1)
         # Now set the reference with the same delay time
