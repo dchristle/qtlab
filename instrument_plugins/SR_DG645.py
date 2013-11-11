@@ -69,7 +69,7 @@ class SR_DG645(Instrument):
         self.add_parameter('delay',
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
-            channels=('T0','T1','A','B','C','D','E','F','G'),
+            channels=('T0','T1','A','B','C','D','E','F','G','H'),
             minval=0, maxval=2000,units = 's')
 
         self.add_parameter('reference',
@@ -92,34 +92,20 @@ class SR_DG645(Instrument):
         self.add_parameter('amplitude',
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
-            channels=('AB', 'CD','EF','GH'),
-            minval=0, maxval=5,units = 'V',
-            format_map = {
-                0: 'T1',
-                1: 'AB',
-                2: 'CD',
-                3: 'EF',
-                4: 'GH',
-            })
+            channels=('T0', 'AB', 'CD','EF', 'GH'),
+            minval=0, maxval=5,units = 'V')
 
         self.add_parameter('offset',
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
-            channels=('AB', 'CD','EF','GH'),
-            minval=-2, maxval=2,units = 'V',
-            format_map = {
-                0: 'T1',
-                1: 'AB',
-                2: 'CD',
-                3: 'EF',
-                4: 'GH',
-            })
+            channels=('T0', 'AB', 'CD', 'EF', 'GH'),
+            minval=-2, maxval=2,units = 'V')
 
         self.add_parameter('polarity',
             flags=Instrument.FLAG_GETSET,
             type=types.IntType,
-            channels=('AB', 'CD','EF','GH'),
-            minval=0, maxval=1,units = 'V',
+            channels=('T0', 'AB', 'CD','EF','GH'),
+            minval=0, maxval=1,
             format_map = {
                 0: 'neg',
                 1: 'pos',
@@ -200,10 +186,10 @@ class SR_DG645(Instrument):
         logging.info('Get all relevant data from device')
         for chan in 'T0','T1','A', 'B', 'C', 'D', 'E', 'F', 'G', 'H':
             self.get('delay%s' % chan)
-        for chan in 'T0', 'AB', 'CD', 'EF', 'GH':
-            self.get('level%s' % chan)
-            self.get('offset%s' % chan)
-            self.get('polarity%s' % chan)
+        for output in 'T0', 'AB', 'CD', 'EF', 'GH':
+            self.get('amplitude%s' % output)
+            self.get('offset%s' % output)
+            self.get('polarity%s' % output)
 
     def set_z_high(self):
         '''
@@ -238,7 +224,8 @@ class SR_DG645(Instrument):
         if type(output) == types.IntType:
             return output
         elif type(output) == types.StringType:
-            nummap = {'T0': 0,
+            nummap = {
+            'T0': 0,
             'AB': 1,
             'CD': 2,
             'EF': 3,
@@ -249,7 +236,7 @@ class SR_DG645(Instrument):
 # --------------------------------------
 #           parameters
 # --------------------------------------
-    def do_set_delay(self,channel,delay_time):
+    def do_set_delay(self, delay_time, channel):
         '''
         Write delay for given channel
         '''
@@ -258,7 +245,7 @@ class SR_DG645(Instrument):
         self._visa.write('DLAY %d,%d,%.12e' % (self._channel_num(channel),self._channel_num(ref),delay_time))
         return
 
-    def do_get_delay(self,channel):
+    def do_get_delay(self, channel):
         '''
         Read delay for given channel
         '''
@@ -286,54 +273,55 @@ class SR_DG645(Instrument):
         self._visa.write('DLAY %d,%d,%.12e' % (self._channel_num(channel),self._channel_num(ref),delay_time))
         return
 
-    def do_set_amplitude(self,output,ampl):
+    def do_set_amplitude(self, ampl, channel):
         '''
         Write level amplitude for given channel
          - may want to add some error checkign to make sure
          amplitude + offset does not exceed 6V
         '''
-        self._visa.write('LAMP %d,%f' % (self._output_num(edge),ampl))
+        self._visa.write('LAMP %d,%f' % (self._output_num(channel),ampl))
         return
 
 
-    def do_get_amplitude(self,output):
+    def do_get_amplitude(self, channel):
         '''
         Read level amplitude for given channel
         '''
-        ans = self._visa.ask('LAMP?%d' % self._output_num(edge))
+        ans = self._visa.ask('LAMP?%d' % self._output_num(channel))
+
         return float(ans)
 
-    def do_set_offset(self,output,offs):
+    def do_set_offset(self, offs, channel):
         '''
         Write level offset for given channel
         - may want to add some error checkign to make sure
          amplitude + offset does not exceed 6V
         '''
-        self._visa.write('LOFF %d,%f' % (self._output_num(output),offs))
+        self._visa.write('LOFF %d,%f' % (self._output_num(channel),offs))
         return
 
-    def do_get_offset(self,output):
+    def do_get_offset(self, channel):
         '''
         Read level offset for given channel
         '''
-        ans = self._visa.ask('LOFF?%d' % self._output_num(output))
+        ans = self._visa.ask('LOFF?%d' % self._output_num(channel))
         return float(ans)
 
-    def do_set_polarity(self,output,pol):
+    def do_set_polarity(self, pol, channel):
         '''
         Write level polarity for given channel
         '''
-        self._visa.write('LPOL %d,%f' % (self._output_num(output),pol))
+        self._visa.write('LPOL %d,%f' % (self._output_num(channel),pol))
         return
 
-    def do_get_polarity(self,output):
+    def do_get_polarity(self, channel):
         '''
         Read level polarity for given channel
         '''
-        ans = self._visa.ask('LPOL?%d' % self._output_num(output))
+        ans = self._visa.ask('LPOL?%d' % self._output_num(channel))
         return float(ans)
 
-    def do_set_trig_source(self,source):
+    def do_set_trig_source(self, source):
         '''
         Write trigger source
         '''
