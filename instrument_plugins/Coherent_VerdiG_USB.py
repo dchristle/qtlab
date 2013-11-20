@@ -34,7 +34,8 @@ class Coherent_VerdiG_USB(Instrument):
 
         self.add_parameter('tgt_power',
             type=types.FloatType, units='W', format='%.04f',
-            flags=Instrument.FLAG_GETSET, minval=0, maxval=7.05)
+            flags=Instrument.FLAG_GETSET, minval=0, maxval=7.05,
+            maxstep=0.5, stepdelay=3000)
         self.add_parameter('output_power',
             type=types.FloatType, units='W', format='%.03f',
             flags=Instrument.FLAG_GET)
@@ -112,7 +113,7 @@ class Coherent_VerdiG_USB(Instrument):
         vgDevCon_arr = ctypes.cast(vgDevCon, LPDWORDPTR)
         vgDevAdded_arr = ctypes.cast(vgDevAdded, LPDWORDPTR)
         vgDevRemoved_arr = ctypes.cast(vgDevCon, LPDWORDPTR)
-
+        # For some reason, it seems like we must do the get DLL... not sure.
         dllversionstring = ctypes.create_string_buffer(128)
         self.CHK(cohr.CohrHOPS_GetDLLVersion(dllversionstring))
 
@@ -125,7 +126,7 @@ class Coherent_VerdiG_USB(Instrument):
         # coding in something that might be variable in the future.
         self.handle = vgDevCon[0]
         # Now initialize the handle for use
-        headtype = ctypes.create_string_buffer(128)
+        headtype = ctypes.create_string_buffer(100)
         self.CHK(cohr.CohrHOPS_InitializeHandle(vgDevCon_arr[0],headtype))
         logging.info(__name__ + 'Verdi G handle initialized, headtype: %s, DLL version: %s' % (headtype.value, dllversionstring.value))
         return
@@ -161,7 +162,7 @@ class Coherent_VerdiG_USB(Instrument):
 
     def do_set_kswcmd(self, ksw):
         if ksw == 1:
-            self.do_set_tgt_power(0.0)
+            self.set_tgt_power(0.0)
             # Wait and allow Verdi to cool a bit
             time.sleep(5)
             s = self._query('KSWCMD=%d' % ksw)
@@ -169,7 +170,7 @@ class Coherent_VerdiG_USB(Instrument):
             time.sleep(8)
         elif ksw == 0:
             # Ensure the target power is zero
-            self.do_set_tgt_power(0.0)
+            self.set_tgt_power(0.0)
             # Wait and allow Verdi to cool a bit
             time.sleep(8)
             s = self._query('KSWCMD=%d' % ksw)
