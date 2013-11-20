@@ -66,6 +66,9 @@ class Coherent_VerdiG_USB(Instrument):
         self.add_parameter('kswcmd',
             type=types.IntType, format_map={1: 'On', 0: 'Off'},
             flags=Instrument.FLAG_GETSET)
+        self.add_parameter('faultcode',
+            type=types.IntType,
+            flags=Instrument.FLAG_GET)
 
 
 
@@ -81,13 +84,15 @@ class Coherent_VerdiG_USB(Instrument):
         self.get_Tmain()
         self.get_TSHG()
         self.get_TBRF()
-        self.get_headhours()
         self.get_Tetalon()
+        self.get_headhours()
         self.get_cmode()
         self.get_output_power()
         self.get_tgt_power()
         self.get_REM()
         self.get_kswcmd()
+        self.get_faultcode()
+        self.get_current()
 
     def CHK(self, err):
         if err != 0:
@@ -211,3 +216,7 @@ class Coherent_VerdiG_USB(Instrument):
     def do_get_current(self):
         s = self._query('?C')
         return float(s)
+
+    def do_get_faultcode(self):
+        s = self._query('?FF')
+        return int(s)
