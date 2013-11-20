@@ -11,6 +11,7 @@ from instrument import Instrument
 import types
 import ctypes
 import logging
+import time
 
 # hardcoded DLL file, works for now.
 cohr = ctypes.windll.LoadLibrary('C:\Python Scripts\David C\CohrHOPS.dll')
@@ -160,10 +161,19 @@ class Coherent_VerdiG_USB(Instrument):
 
     def do_set_kswcmd(self, ksw):
         if ksw == 1:
-            # Wait and allow Verdi to warm before releasing.
+            self.do_set_tgt_power(0.0)
+            # Wait and allow Verdi to cool a bit
+            time.sleep(5)
+            s = self._query('KSWCMD=%d' % ksw)
+            # Wait again to allow Verdi to wake up
             time.sleep(8)
+        elif ksw == 0:
+            # Ensure the target power is zero
+            self.do_set_tgt_power(0.0)
+            # Wait and allow Verdi to cool a bit
+            time.sleep(8)
+            s = self._query('KSWCMD=%d' % ksw)
 
-        s = self._query('KSWCMD=%d' % ksw)
         return True
 
     def do_get_tgt_power(self):
