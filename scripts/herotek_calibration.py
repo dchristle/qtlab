@@ -56,7 +56,7 @@ def ht_calibrate(f_vec, p_vec):
             qt.msleep(0.1)
             logging.debug(__name__ + 'power set to: %s dBm' % (p))
             tot = 0
-            Navg = 128
+            Navg = 64
             for i in numpy.arange(0,Navg):
                 tot = tot + n63.get_ai0()
                 qt.msleep(0.01)
