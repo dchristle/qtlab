@@ -14,37 +14,62 @@
 
 from instrument import Instrument
 import types
+import logging
+import time
+import qt
 
-class dummy_positioner(Instrument):
+# Import the DAQ as an instrument object to write to.
+ni63 = qt.instruments['NIDAQ6363']
 
-    def __init__(self, name, channels=3):
+class Newport_FSM(Instrument):
+
+    def __init__(self, name, channels=2):
         Instrument.__init__(self, name, tags=['positioner'])
 
+        # Store related constants for the FSM here; the only important
+        # ones are the micron_per_volt conversion, which is calibrated somewhat
+        # infrequently, and the min_v and max_v. These min/max voltages should
+        # be hardcoded to +-10 V, since (c.f. the manual) these limits are the
+        # full-scale movement of the device on its command inputs.
+
+        self.fsm_dimensions = {
+                'X' : {
+                    'micron_per_volt' : 9.324,
+                    'min_v' : -10.,
+                    'max_v' : 10,
+                    'default' : 0.,
+                    'origin' : 0.,
+                    'ao_function' : 'set_ao0',
+                    },
+                'Y' : {
+                    'micron_per_volt' : 9.3,
+                    'min_v' : -10.,
+                    'max_v' : 10,
+                    'default' : 0.,
+                    'origin' : 0.,
+                    'ao_function' : 'set_ao1',
+                    },
+                }
         # Instrument parameters
-        self.add_parameter('position',
-            type=types.TupleType,
-            flags=Instrument.FLAG_GET,
-            format='%.03f, %.03f, %.03f')
+        self.add_parameter('abs_position',
+            type=types.FloatType,
+            channels=('X', 'Y'),
+            flags=Instrument.FLAG_SET|Instrument.FLAG_SOFTGET,
+            units='um',
+            format='%.04f')
         self.add_parameter('speed',
             type=types.TupleType,
+            units='V/s',
             flags=Instrument.FLAG_SET|Instrument.FLAG_SOFTGET,
-            format='%.1f, %.01f, %.01f')
-        self.add_parameter('channels',
-            type=types.IntType,
-            flags=Instrument.FLAG_SET|Instrument.FLAG_SOFTGET)
-
-        self.set_channels(channels)
+            format='%.1f, %.01f')
 
         # Instrument functions
         self.add_function('start')
         self.add_function('stop')
-        self.add_function('move_abs')
 
     def do_get_position(self, query=True):
         return [0, 0, 0]
 
-    def do_set_channels(self, val):
-        return True
 
     def do_set_speed(self, val):
         print 'Setting speed to %r' % (val, )
@@ -58,5 +83,54 @@ class dummy_positioner(Instrument):
     def step(self, chan, nsteps):
         print 'Stepping channel %d by %d' % (chan, nsteps)
 
-    def move_abs(self, pos, **kwargs):
-        print 'Moving to %r' % (pos, )
+    def convert_um_to_V(self, x_um, channel):
+        # Just do the micron-to-volt conversion using the hardcoded constants
+        x_volts = (x_um-self.fsm_dimensions[channel]['origin']) *(
+        1/self.fsm_dimensions[channel]['micron_per_volt'])
+
+        return x_volts
+    def convert_V_to_um(self, x_V, channel):
+        # Just do the micron-to-volt conversion using the hardcoded constants
+        x_um = x_V*self.fsm_dimensions[channel]['micron_per_volt']+self.fsm_dimensions[channel]['origin']
+        return x_um
+
+    def do_set_abs_position(self, x_um, channel):
+        # Convert to volts first
+        x_volts = self.convert_um_to_V(x_um, channel)
+        # Check if voltage is in bounds, then set
+
+        if (x_volts >= self.fsm_dimensions[channel]['min_v'] and
+            x_volts <= self.fsm_dimensions[channel]['max_v']):
+
+            local_AO_function = getattr(ni63, self.fsm_dimensions[channel]['ao_function'])
+            result = local_AO_function(x_volts)
+            #print 'Moving to %r at %s V' % (x_um, x_volts)
+            return 0
+        else:
+            print 'Could not set position -- voltage bounds exceeded -- V was: %s' % x_volts
+            logging.debug(__name__ + 'voltage bounds exceeded')
+            return -1
+    def simple_sweep_um(self, x_um_array, rate, channel):
+        # This is a crude sweep that just uses repeated software calls. This is
+        # in contrast to a hardware-controlled sweep that loads the points and
+        # then writes them using hardware timing.
+        for x_c in x_um_array:
+            self.do_set_abs_position(x_c, channel)
+            time.sleep(1.0/float(rate))
+        return
+    def simple_sweep_V(self, x_V_array, rate, channel):
+        # This is a crude sweep that just uses repeated software calls. This is
+        # in contrast to a hardware-controlled sweep that loads the points and
+        # then writes them using hardware timing.
+        for x_V in x_V_array:
+            x_c = self.convert_V_to_um(x_V, channel)
+            self.do_set_abs_position(x_c, channel)
+            time.sleep(1.0/float(rate))
+        return
+    def zero_voltages(self):
+        # Zero out both FSM voltages.
+        self.set_abs_positionX(self.convert_V_to_um(0, 'X'))
+        self.set_abs_positionY(self.convert_V_to_um(0, 'Y'))
+
+        return
+
