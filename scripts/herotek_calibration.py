@@ -56,12 +56,11 @@ def ht_calibrate(f_vec, p_vec):
             qt.msleep(0.1)
             logging.debug(__name__ + 'power set to: %s dBm' % (p))
             tot = 0
-            Navg = 64
+            Navg = 128
             for i in numpy.arange(0,Navg):
                 tot = tot + n63.get_ai0()
-                qt.msleep(0.01)
             meas_v = tot/Navg
-            data.add_data_point(f,p,meas_v)
+            data.add_data_point(f*1e-9,p,meas_v)
         data.new_block()
         p3d.update()
 
