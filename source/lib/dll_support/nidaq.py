@@ -36,6 +36,8 @@ DAQmx_Val_NRSE              = 10078
 DAQmx_Val_Diff              = 10106
 DAQmx_Val_PseudoDiff        = 12529
 
+DAQmx_Val_SampleClock       = 12487
+
 _config_map = {
     'DEFAULT': DAQmx_Val_Cfg_Default,
     'RSE': DAQmx_Val_RSE,
@@ -199,6 +201,58 @@ def read(devchan, samples=1, freq=10000.0, minv=-10.0, maxv=10.0,
         return None
 
 def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
+                timeout=10.0):
+    '''
+    Write values to channel
+
+    Input:
+        devchan (string): device/channel specifier, such as Dev1/ao0
+        data (int/float/numpy.array): data to write
+        freq (float): the the minimum voltage
+        maxv (float): the maximum voltage
+        timeout (float): the time in seconds to wait for completion
+
+    Output:
+        Number of values written
+    '''
+
+    if type(data) in (types.IntType, types.FloatType):
+        data = numpy.array([data], dtype=numpy.float64)
+    elif isinstance(data, numpy.ndarray):
+        if data.dtype is not numpy.float64:
+            data = numpy.array(data, dtype=numpy.float64)
+    elif len(data) > 0:
+        data = numpy.array(data, dtype=numpy.float64)
+    samples = len(data)
+
+    taskHandle = TaskHandle(0)
+    written = int32()
+    try:
+        CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandle)))
+        CHK(nidaq.DAQmxCreateAOVoltageChan(taskHandle, devchan, "",
+            float64(minv), float64(maxv), DAQmx_Val_Volts, None))
+
+        if len(data) == 1:
+            CHK(nidaq.DAQmxWriteAnalogScalarF64(taskHandle, 1, float64(timeout),
+                float64(data[0]), None))
+            written = int32(1)
+        else:
+            CHK(nidaq.DAQmxCfgSampClkTiming(taskHandle, "", float64(freq),
+                DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, uInt64(samples)))
+            CHK(nidaq.DAQmxWriteAnalogF64(taskHandle, samples, 0, float64(timeout),
+                DAQmx_Val_GroupByChannel, data.ctypes.data,
+                ctypes.byref(written), None))
+            CHK(nidaq.DAQmxStartTask(taskHandle))
+    except Exception, e:
+        logging.error('NI DAQ call failed (correct channel configuration selected?): %s', str(e))
+    finally:
+        if taskHandle.value != 0:
+            nidaq.DAQmxStopTask(taskHandle)
+            nidaq.DAQmxClearTask(taskHandle)
+
+    return written.value
+
+def write_exportclk(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
                 timeout=10.0):
     '''
     Write values to channel

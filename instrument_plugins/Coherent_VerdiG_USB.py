@@ -35,7 +35,7 @@ class Coherent_VerdiG_USB(Instrument):
         self.add_parameter('tgt_power',
             type=types.FloatType, units='W', format='%.04f',
             flags=Instrument.FLAG_GETSET, minval=0, maxval=7.05,
-            maxstep=0.5, stepdelay=3000)
+            maxstep=0.25, stepdelay=5000)
         self.add_parameter('output_power',
             type=types.FloatType, units='W', format='%.03f',
             flags=Instrument.FLAG_GET)

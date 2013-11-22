@@ -1,5 +1,6 @@
 # NI_DAQ.py, National Instruments Data AcQuisition instrument driver
 # Reinier Heeres <reinier@heeres.eu>, 2009
+# David Christle <christle@uchicago.edu>, 2013
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -82,6 +83,8 @@ class NI_DAQ(Instrument):
 
         self.add_function('reset')
         self.add_function('digital_out')
+        #self.add_function('AOsweep_exportclk')
+        #self.add_function('AOsweep_DAQcount')
 
         self.reset()
         self.set_chan_config('RSE')

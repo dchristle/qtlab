@@ -5,3 +5,7 @@ qtlab.cfg
 data
 tmp
 3rd_party
+*.lock
+instrument_plugins/XPS_Q8_drivers.py
+analysis
+*.tmp
