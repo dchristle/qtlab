@@ -10,7 +10,7 @@
 @ECHO OFF
 
 :: Add gnuplot to PATH ("binary" folder for >= 4.4.0, "bin" folder for 4.3)
-SET PATH=%CD%\3rd_party\gnuplot\binary;%PATH%
+SET PATH=%CD%\3rd_party\gnuplot\bin;%PATH%
 
 :: Add Console2 to PATH
 SET PATH=%CD%\3rd_party\Console2\;%PATH%
