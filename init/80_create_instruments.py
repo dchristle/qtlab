@@ -1,10 +1,14 @@
 ##example1 = qt.instruments.create('example1', 'example', address='GPIB::1', reset=True)
-dsgen = qt.instruments.create('dsgen', 'dummy_signal_generator')
-pos = qt.instruments.create('pos', 'dummy_positioner')
-combined = qt.instruments.create('combined', 'virtual_composite')
-combined.add_variable_scaled('magnet', example1, 'chA_output', 0.02, -0.13, units='mT')
+##dsgen = qt.instruments.create('dsgen', 'dummy_signal_generator')
+##pos = qt.instruments.create('pos', 'dummy_positioner')
+##combined = qt.instruments.create('combined', 'virtual_composite')
+##combined.add_variable_scaled('magnet', example1, 'chA_output', 0.02, -0.13, units='mT')
 ddg = qt.instruments.create('ddg','SR_DG645',address='GPIB0::15::INSTR')
 tl = qt.instruments.create('tl','ThorLabs_ITC4001',address='USB0::0x1313::0x804A::M00277475::INSTR')
+verdi = qt.instruments.create('verdi','Coherent_VerdiG_USB')
+xps = qt.instruments.create('xps','Newport_XPS',address='192.168.0.254')
+li = qt.instruments.create('lockin','Lockin_726x',address='GPIB0::17::INSTR')
+ls = qt.instruments.create('ls332','Lakeshore_332',address='GPIB0::18::INSTR')
 #combined.add_variable_combined('waveoffset', [{
 #    'instrument': dmm1,
 #    'parameter': 'ch2_output',
