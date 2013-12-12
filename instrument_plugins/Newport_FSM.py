@@ -127,7 +127,7 @@ class Newport_FSM(Instrument):
             self.do_set_abs_position(x_c, channel)
             time.sleep(1.0/float(rate))
         return
-    def zero_voltages(self):
+    def zero(self):
         # Zero out both FSM voltages.
         self.set_abs_positionX(self.convert_V_to_um(0, 'X'))
         self.set_abs_positionY(self.convert_V_to_um(0, 'Y'))

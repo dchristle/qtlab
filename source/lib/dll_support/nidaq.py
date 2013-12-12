@@ -187,6 +187,12 @@ def read(devchan, samples=1, freq=10000.0, minv=-10.0, maxv=10.0,
 
     except Exception, e:
         logging.error('NI DAQ call failed: %s', str(e))
+        try:
+            nidaq.DAQmxStopTask(taskHandle)
+            nidaq.DAQmxClearTask(taskHandle)
+        except Exception:
+            logging.error('NI DAQ could not clear task after error')
+
     finally:
         if taskHandle.value != 0:
             nidaq.DAQmxStopTask(taskHandle)
@@ -245,6 +251,11 @@ def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
             CHK(nidaq.DAQmxStartTask(taskHandle))
     except Exception, e:
         logging.error('NI DAQ call failed (correct channel configuration selected?): %s', str(e))
+        try:
+            nidaq.DAQmxStopTask(taskHandle)
+            nidaq.DAQmxClearTask(taskHandle)
+        except Exception:
+            logging.error('NI DAQ could not clear task after error')
     finally:
         if taskHandle.value != 0:
             nidaq.DAQmxStopTask(taskHandle)
