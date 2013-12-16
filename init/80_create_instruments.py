@@ -12,6 +12,8 @@ xps = qt.instruments.create('xps','Newport_XPS',address='192.168.0.254')
 li = qt.instruments.create('lockin','Lockin_726x',address='GPIB0::17::INSTR')
 ls332 = qt.instruments.create('ls332','Lakeshore_332',address='GPIB0::18::INSTR')
 fsm = qt.instruments.create('fsm','Newport_FSM')
+snspd = qt.instruments.create('snspd','SSPDController',ni_ins=qt.instruments['NIDAQ6216'],resistance=500)
+#def __init__(self, name, ni_ins, resistance=500):
 
 #combined.add_variable_combined('waveoffset', [{
 #    'instrument': dmm1,
