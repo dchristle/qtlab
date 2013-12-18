@@ -29,7 +29,7 @@ class SSPDController(Instrument):
         if self._ni_ins is not None:
             self._ni_ins.set('ctr0_src', 'PFI0')
             self._ni_ins.set('ctr1_src', 'PFI1')
-            
+
         self.add_parameter('bias', type=types.FloatType, channels=[0, 1],
                 flags=Instrument.FLAG_SET | Instrument.FLAG_SOFTGET,
                 minval=-10, maxval=10, units='V',
@@ -80,7 +80,7 @@ class SSPDController(Instrument):
         self.add_function('iv_counts0')
         self.add_function('iv_counts1')
         self.add_function('reset_bias')
-        
+
     def do_set_bias(self, val, channel=0, check=False):
         if self._ni_ins is None:
             return
@@ -133,8 +133,7 @@ class SSPDController(Instrument):
         biaspar = 'bias%d' % channel
         vbias = self.get(biaspar)
         vmeaspar = 'vmeas%d' % channel
-        
-        was_super = True
+
         n = 0
         val = self.get(vmeaspar)
         while val > self._zerosignal and n < 10:
@@ -150,8 +149,8 @@ class SSPDController(Instrument):
         if val > self._zerosignal:
             print 'Unable to restore detector!'
             return False
-
-        return was_super
+        else:
+            return True
 
     def check0(self):
         return self.check_chan(0)
@@ -189,6 +188,7 @@ class SSPDController(Instrument):
             data.add_data_point(v_out, v_meas)
 
         self.set(biaspar, 0)
+        qt.plot(data, name='iv', clear=True)
         return data
 
     def iv_counts(self, channel, start=0, stop=10, step=0.25, delay=0.2):
@@ -199,10 +199,11 @@ class SSPDController(Instrument):
         '''
 
         print ''
-        
+
         biaspar = 'bias%d' % channel
         vmeaspar = 'vmeas%d' % channel
-
+        ni6216 = qt.instruments['NIDAQ6216'] # Get internal DAQ instrument
+        ni6216.set_count_time(1.0)
         r = self.get_resistance() / 1000.0
         n = (int(abs(stop - start) / step)) + 1
         data = qt.Data(name='iv')
@@ -222,27 +223,27 @@ class SSPDController(Instrument):
                 counts = self.get_counts1()
             print 'v_out, current_out, v_meas, counts: %f, %f, %f, %d' % (v_out, current, v_meas, counts)
             data.add_data_point(v_out, v_meas, counts)
-            
+
             if v_meas > 0.5:
                 break
-                
+
         self.set(biaspar, 0)
-        
+
         qt.plot(data, name='ivcounts', clear=True)
         qt.plot(data, name='ivcounts', valdim=2, right=True)
-        
+
         return data
 
     def iv_counts0(self, ret=False):
         val = self.iv_counts(0)
         if ret:
             return val
-        
+
     def iv_counts1(self, ret=False):
         val = self.iv_counts(1)
         if ret:
             return val
-        
+
     def standard_iv(self, channel):
         d = self.iv(channel, 0, 3, 0.2, 0.2)
         return d
@@ -255,4 +256,4 @@ class SSPDController(Instrument):
         time.sleep(1)
         self.set_bias0(b0)
         self.set_bias1(b1)
-        
+

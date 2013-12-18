@@ -88,7 +88,7 @@ class NI_DAQ(Instrument):
 
         self.reset()
         self.set_chan_config('RSE')
-        self.set_count_time(0.1)
+        self.set_count_time(1)
         self.get_all()
 
     def get_all(self):
@@ -127,7 +127,8 @@ class NI_DAQ(Instrument):
         src = self.get(channel + "_src")
         if src is not None and src != '':
             src = '/%s/%s' % (self._id, src)
-        return nidaq.read_counter(devchan, src=src, freq=1/self._count_time)
+        data = nidaq.read_counter(devchan, src=src, freq=1/self._count_time, samples=1)
+        return data
 
     def read_counters(self, channels):
         chans = []

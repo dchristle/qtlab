@@ -64,7 +64,7 @@ class Newport_FSM(Instrument):
             format='%.1f, %.01f')
 
         # Instrument functions
-        self.add_function('zero_voltages')
+        self.add_function('zero')
 
 
     def do_get_position(self, query=True):

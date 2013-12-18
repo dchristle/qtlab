@@ -190,7 +190,7 @@ def read(devchan, samples=1, freq=10000.0, minv=-10.0, maxv=10.0,
 
     finally:
         if taskHandle.value != 0:
-            nidaq.DAQmxStopTask(taskHandle)
+            #nidaq.DAQmxStopTask(taskHandle)
             nidaq.DAQmxClearTask(taskHandle)
 
     if read > 0:
@@ -249,7 +249,7 @@ def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
 
     finally:
         if taskHandle.value != 0:
-            nidaq.DAQmxStopTask(taskHandle)
+            #nidaq.DAQmxStopTask(taskHandle)
             nidaq.DAQmxClearTask(taskHandle)
 
     return written.value
@@ -333,6 +333,11 @@ def read_counter(devchan="/Dev1/ctr0", samples=1, freq=1.0, timeout=1.0, src="")
                DAQmx_Val_GroupByChannel, data.ctypes.data,
                samples, ctypes.byref(read), None))
         else:
+            # For one sample, the strategy is to start the counter, which is
+            # initialized to zero, wait in software a certain amount, and then
+            # read the instantaneous value of the counter. This is in contrast
+            # to having a dedicated clock, which I believe the above case for
+            # samples > 1 still requires (I could not get it to work).
             CHK(nidaq.DAQmxStartTask(taskHandle))
             time.sleep(1.0 / freq)
             nread = int32(0)
@@ -341,13 +346,22 @@ def read_counter(devchan="/Dev1/ctr0", samples=1, freq=1.0, timeout=1.0, src="")
             nread = int32(1)
 
     except Exception, e:
-        logging.error('NI DAQ counter read call failed: %s', str(e))
+        logging.error('NI DAQ new counter read call failed: %s', str(e))
 
     finally:
-
         if taskHandle.value != 0:
-            nidaq.DAQmxStopTask(taskHandle)
-            nidaq.DAQmxClearTask(taskHandle)
+            # Commented out both the stop task and clear task. The problem was
+            # that the DAQ was not releasing all of its resources properly, so
+            # after attempting to count only once, the next attempt to count
+            # would fail because whatever the resource was, it was still reserved.
+            # This was even after stopping and clearing the task, or just clearing
+            # only. The below code works by explicitly unreserving the resources
+            # by passing the integer 5 to the function, which corresponds to the
+            # command to unreserve the resources associated with the task.
+
+            #print '%s' % CHK(nidaq.DAQmxStopTask(taskHandle))
+            CHK(nidaq.DAQmxTaskControl(taskHandle,int(5)))
+            #CHK(nidaq.DAQmxClearTask(taskHandle))
 
     if nread.value == 1:
         return int(data[0])
