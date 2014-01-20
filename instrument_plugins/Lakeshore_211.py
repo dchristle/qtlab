@@ -10,7 +10,10 @@ import math
 import time
 import pyvisa
 
-class Lakeshore_221(Instrument):
+CR = "\r"
+LF = "\n"
+
+class Lakeshore_211(Instrument):
 
 
     def __init__(self, name, address, reset=False):
@@ -46,9 +49,9 @@ class Lakeshore_221(Instrument):
         logging.debug(__name__ + ' : Opening serial connection')
 
         self._visa = pyvisa.visa.SerialInstrument(self._address,
-                baud_rate=9600, data_bits=7, stop_bits=1,
-                parity=pyvisa.visa.odd_parity, term_chars=pyvisa.visa.CR+pyvisa.visa.LF,
-                send_end=False,timeout=2)
+                start_bits=1, baud_rate=9600, data_bits=7, stop_bits=1,
+                parity=pyvisa.visa.odd_parity, term_chars="\r\n",
+                timeout=2)
         # The purpose of the short timeout is so that the buffer_clear()
         # operation that takes place with every command to ensure the proper
         # output doesn't take too long. Each buffer_clear() usually takes one
@@ -80,7 +83,7 @@ class Lakeshore_221(Instrument):
 
     def do_get_identification(self):
         self.buffer_clear()
-        return self._visa.ask('*ind')
+        return self._visa.ask('*IDN?')
 
     def do_get_dispon(self):
         logging.debug(__name__ + 'reading temperature')

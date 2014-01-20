@@ -1,5 +1,5 @@
-# Thorlabs_PM100D, Thorlabs PM100D power meter driver
-# Reinier Heeres <reinier@heeres.eu>, 2010
+# Thorlabs_TSP01, Thorlabs TSP01 temperature monitor drive
+# Wolfgang Pfaff <wolfgangpfff@gmail.com>, 2013
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@ import logging
 import re
 import math
 
-class Thorlabs_PM100D(Instrument):
-
+class Thorlabs_TSP01(Instrument):
+    
     def __init__(self, name, address, reset=False):
         Instrument.__init__(self, name)
 
@@ -31,22 +31,27 @@ class Thorlabs_PM100D(Instrument):
         self._visa = visa.instrument(self._address)
 
         self.add_parameter('identification',
-            flags=Instrument.FLAG_GET,
-            type=types.StringType)
+            flags=Instrument.FLAG_GET)
 
-        self.add_parameter('power',
+        self.add_parameter('internal_temperature',
             flags=Instrument.FLAG_GET,
             type=types.FloatType,
-            units='W')
+            units='deg C')
 
-        self.add_parameter('head_info',
+        self.add_parameter('probe1_temperature',
             flags=Instrument.FLAG_GET,
-            type=types.StringType)
-
-        self.add_parameter('wavelength',
-            flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
-            units='nm')
+            units='deg C')
+
+        self.add_parameter('probe2_temperature',
+            flags=Instrument.FLAG_GET,
+            type=types.FloatType,
+            units='deg C')     
+        
+        self.add_parameter('humidity',
+            flags=Instrument.FLAG_GET,
+            type=types.FloatType,
+            units='percent')
 
         if reset:
             self.reset()
@@ -57,26 +62,29 @@ class Thorlabs_PM100D(Instrument):
         self._visa.write('*RST')
 
     def get_all(self):
-        self.get_power()
-        self.get_head_info()
-        self.get_wavelength()
+        self.get_internal_temperature()
+        self.get_probe1_temperature()
+        self.get_probe2_temperature()
+        self.get_humidity()
 
     def do_get_identification(self):
         return self._visa.ask('*IDN?')
 
-    def do_get_power(self):
-        ans = self._visa.ask('MEAS:POW?')
+    def do_get_internal_temperature(self):
+        ans = self._visa.ask('MEAS:TEMP?')
         return float(ans)
 
-    def do_get_head_info(self):
-        ans = self._visa.ask('SYST:SENS:IDN?')
-        return ans
+    def do_get_probe1_temperature(self):
+        ans = self._visa.ask('MEAS:TEMP2?')
+        return float(ans)
 
-    def do_get_wavelength(self):
-        ans = self._visa.ask('CORR:WAV?')
-        return float(ans)*1e-9
+    def do_get_probe2_temperature(self):
+        ans = self._visa.ask('MEAS:TEMP3?')
+        return float(ans)
 
-    def do_set_wavelength(self, val):
-        valnm=val*1e9
-        self._visa.write('CORR:WAV %e' % valnm)
+    def do_get_humidity(self):
+        ans = self._visa.ask('MEAS:HUM?')
+        return float(ans)
+
+
 

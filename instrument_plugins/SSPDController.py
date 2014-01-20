@@ -172,7 +172,7 @@ class SSPDController(Instrument):
         biaspar = 'bias%d' % channel
         vmeaspar = 'vmeas%d' % channel
 
-        r = self.get_resistance() / 1000.0
+        r = self.get_resistance() / 1000.0 # Not sure why this is dividing. Bug?
         n = (int(abs(stop - start) / step)) + 1
         data = qt.Data(name='iv')
         data.add_coordinate('Vbias', units='V')
@@ -190,6 +190,7 @@ class SSPDController(Instrument):
         self.set(biaspar, 0)
         qt.plot(data, name='iv', clear=True)
         return data
+
 
     def iv_counts(self, channel, start=0, stop=10, step=0.25, delay=0.2):
         '''
@@ -234,6 +235,101 @@ class SSPDController(Instrument):
 
         return data
 
+    def iv_counts_sr400(self, channel, start=0, stop=10, step=0.25, delay=0.2):
+        '''
+        Take an IV on channel chan and measure count rate:
+        - start / stop in V
+        - steps
+        '''
+
+        print ''
+        sr400 = qt.instruments['sr400']
+
+        biaspar = 'bias%d' % channel
+        vmeaspar = 'vmeas%d' % channel
+
+        r = self.get_resistance() / 1000.0
+        n = (int(abs(stop - start) / step)) + 1
+        data = qt.Data(name='iv')
+        data.add_coordinate('Vbias', units='V')
+        data.add_value('Vmeas', units='V')
+        data.add_value('Counts', units='')
+        data.create_file()
+        for i in range(n):
+            v_out = start + i * step
+            current = v_out/r
+            self.set(biaspar, v_out, check=False)
+            time.sleep(delay)
+            v_meas = self.get(vmeaspar)
+            if channel == 0:
+                counts = sr400.get_countA()
+            else:
+                counts = sr400.get_countB()
+            print 'v_out, current_out, v_meas, counts: %f, %f, %f, %d' % (v_out, current, v_meas, counts)
+            data.add_data_point(v_out, v_meas, counts)
+
+            if v_meas > 0.5:
+                break
+
+        self.set(biaspar, 0)
+
+        qt.plot(data, name='ivcounts', clear=True)
+        qt.plot(data, name='ivcounts', valdim=2, right=True)
+
+        return data
+
+    def iv_counts_disc_sr400(self, channel, start=0, stop=10, step=0.25, delay=0.2, discarray = [0.2]):
+        '''
+        Take an IV on channel chan and measure count rate:
+        - start / stop in V
+        - steps
+        '''
+
+        print ''
+        sr400 = qt.instruments['sr400']
+
+        biaspar = 'bias%d' % channel
+        vmeaspar = 'vmeas%d' % channel
+
+
+
+        r = self.get_resistance() / 1000.0
+        n = (int(abs(stop - start) / step)) + 1
+        data = qt.Data(name='iv')
+        data.add_coordinate('Vbias', units='V')
+        data.add_value('Vmeas', units='V')
+        data.add_value('Counts', units='')
+        data.create_file()
+
+        plot3d = qt.Plot3D(data, name='3D', style='image', coorddims=(1,0), valdim=2)
+        for disc in discarray:
+            if (msvcrt.kbhit() and (msvcrt.getch() == 'q')): break
+            sr400.set_disc_levelA(disc)
+            sr400.set_disc_levelB(disc)
+            for i in range(n):
+                if (msvcrt.kbhit() and (msvcrt.getch() == 'q')): break
+                v_out = start + i * step
+                current = v_out/r
+                self.set(biaspar, v_out, check=False)
+                time.sleep(delay)
+                v_meas = self.get(vmeaspar)
+                if channel == 0:
+                    counts = sr400.get_countA()
+                else:
+                    counts = sr400.get_countB()
+                print 'v_out, current_out, v_meas, counts: %f, %f, %f, %d' % (v_out, current, v_meas, counts)
+                data.add_data_point(v_out, v_meas, counts)
+                data.add_data_point(v_out, disc, counts)
+
+                if v_meas > 0.5:
+                    break
+
+        self.set(biaspar, 0)
+
+        qt.plot(data, name='ivcounts', clear=True)
+        qt.plot(data, name='ivcounts', valdim=2, right=True)
+
+        return data
     def iv_counts0(self, ret=False):
         val = self.iv_counts(0)
         if ret:

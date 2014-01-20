@@ -37,7 +37,7 @@ class Newport_XPS(Instrument):
         # Instrument parameters
         self.add_parameter('abs_position',
             type=types.FloatType,
-            channels=('X', 'Y', 'Z'),
+            channels=('X', 'Y', 'Z','M'),
             flags=Instrument.FLAG_GETSET,
             minval=-12.5, maxval=12.5,
             units='mm',
@@ -54,7 +54,7 @@ class Newport_XPS(Instrument):
         # Error checking function
 
         # Instrument functions
-        self.add_function('home', channels=('X', 'Y', 'Z'))
+        self.add_function('home', channels=('X', 'Y', 'Z', 'M'))
 ##        self.add_function('stop')
 ##        self.add_function('move_abs')
         if reset:
@@ -104,7 +104,8 @@ class Newport_XPS(Instrument):
 
         nummap = {'X': 'Group1.Pos',
                 'Y': 'Group2.Pos',
-                'Z': 'Group3.Pos'}
+                'Z': 'Group3.Pos',
+                'M': 'Group5.Pos'}
         return nummap.get(channel.upper(), None)
 
     def do_set_abs_position(self, position, channel):
