@@ -16,8 +16,9 @@ ls332 = qt.instruments.create('ls332','Lakeshore_332',address='GPIB0::18::INSTR'
 fsm = qt.instruments.create('fsm','Newport_FSM')
 snspd = qt.instruments.create('snspd','SSPDController',ni_ins=qt.instruments['NIDAQ6216'],resistance=200)
 fm = qt.instruments.create('fm','Coherent_FieldMasterGS',address='ASRL7::INSTR')
-sr400 = qt.instruments.create('sr400','SR_400',address='GPIB0::20::INSTR')
+sr400 = qt.instruments.create('sr400','SR_400',address='GPIB1::20::INSTR')
 ls211 = qt.instruments.create('ls211','Lakeshore_211',address='COM8')
+awg = qt.instruments.create('awg','Tektronix_AWG5014',address='GPIB0::14::INSTR')
 #def __init__(self, name, ni_ins, resistance=500):
 
 #combined.add_variable_combined('waveoffset', [{

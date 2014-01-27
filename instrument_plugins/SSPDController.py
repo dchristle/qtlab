@@ -192,7 +192,7 @@ class SSPDController(Instrument):
         return data
 
 
-    def iv_counts(self, channel, start=0, stop=10, step=0.25, delay=0.2):
+    def iv_counts(self, channel, start=0, stop=7.5, step=0.25, delay=0.2):
         '''
         Take an IV on channel chan and measure count rate:
         - start / stop in V
