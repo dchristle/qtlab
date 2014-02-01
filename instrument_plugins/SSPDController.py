@@ -80,6 +80,11 @@ class SSPDController(Instrument):
         self.add_function('iv_counts0')
         self.add_function('iv_counts1')
         self.add_function('reset_bias')
+        self.add_function('ch0on')
+        self.add_function('ch0off')
+        self.add_function('ch1on')
+        self.add_function('ch1off')
+        self.add_function('zero')
 
     def do_set_bias(self, val, channel=0, check=False):
         if self._ni_ins is None:
@@ -343,6 +348,42 @@ class SSPDController(Instrument):
     def standard_iv(self, channel):
         d = self.iv(channel, 0, 3, 0.2, 0.2)
         return d
+
+    def ch0on(self):
+        # Constant for this channel,determined by D. Christle 2014/01/31
+        # Quantum efficiency: 23.3% @ 1060 nm
+        # Dark counts: 5 per second
+        default_bias_ch0 = 3.45
+        self.set_bias0(default_bias_ch0)
+        print 'SNSPD channel 0 enabled, bias set to %s V' % default_bias_ch0
+        time.sleep(2)
+        return self.check()
+
+    def ch1on(self):
+        # Constant for this channel,determined by D. Christle 2014/01/31
+        # Quantum efficiency: 24.7% @ 1060 nm
+        # Dark counts: 20 per second
+        default_bias_ch1 = 4.75
+        self.set_bias1(default_bias_ch1)
+        time.sleep(2)
+        print 'SNSPD channel 1 enabled, bias set to %s V' % default_bias_ch1
+        return self.check()
+
+    def ch0off(self):
+        aa = self.set_bias0(0.0)
+        print 'SNSPD channel 0 disabled'
+        return aa
+
+    def ch1off(self):
+        aa = self.set_bias1(0.0)
+        print 'SNSPD channel 1 disabled'
+        return aa
+
+    def zero(self):
+        aa = self.set_bias0(0.0)
+        bb = self.set_bias1(0.0)
+        print 'Both SNSPD channels disabled'
+        return (aa and bb)
 
     def reset_bias(self):
         b0 = self.get_bias0()
