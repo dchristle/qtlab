@@ -193,7 +193,7 @@ class NI_RFSG(Instrument):
         if retVal == 0:
             self._freq = freq
         else:
-            logging.debug(__name__ + ' returned value of %s in error' % retVal)
+            logging.error(__name__ + ' returned value of %s in error' % retVal)
         return retVal
 
     def do_set_power(self, power):

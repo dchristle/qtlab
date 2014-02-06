@@ -224,7 +224,9 @@ class Lockin_726x(Instrument):
         Read X& Y values simultaneously
         '''
         ans = self._visa.ask('XY.')
-        XYvals = [float(x) for x in ans.split(",")]
+        # replace usage here necessary to get rid of \x00 that is attached to
+        # the string when the lockin returns 0E+00.
+        XYvals = [float(x) for x in ans.replace('\x00','').split(',')]
         return XYvals
 
     def do_set_TC(self,TCval):
