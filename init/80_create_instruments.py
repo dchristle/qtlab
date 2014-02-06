@@ -19,6 +19,7 @@ fm = qt.instruments.create('fm','Coherent_FieldMasterGS',address='ASRL7::INSTR')
 sr400 = qt.instruments.create('sr400','SR_400',address='GPIB1::20::INSTR')
 ls211 = qt.instruments.create('ls211','Lakeshore_211',address='COM8')
 awg = qt.instruments.create('awg','Tektronix_AWG5014',address='GPIB0::14::INSTR')
+pxi = qt.instruments.create('pxi','NI_RFSG',resource_name='IQ5611')
 #def __init__(self, name, ni_ins, resistance=500):
 
 #combined.add_variable_combined('waveoffset', [{
