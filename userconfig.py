@@ -1,6 +1,9 @@
 # This file contains user-specific settings for qtlab.
 # It is run as a regular python script.
 
+BASE = os.path.join(os.getcwd(), '..')
+sys.path.append(BASE)
+
 # Do not change the following line unless you know what you are doing
 config.remove([
             'datadir',
@@ -25,10 +28,10 @@ config['allowed_ips'] = (
 config['instrument_server'] = False
 
 ## This sets a default location for data-storage
-#config['datadir'] = 'd:/data'
+config['datadir'] = os.path.join(BASE,'data')
 
 ## This sets a default directory for qtlab to start in
-#config['startdir'] = 'd:/scripts'
+config['startdir'] = os.path.join(BASE,'measurement/scripts')
 
 ## A default script (or list of scripts) to run after qtlab started
 config['startscript'] = []      #e.g. 'initscript1.py'
@@ -39,14 +42,13 @@ config['exitscript'] = []       #e.g. ['closescript1.py', 'closescript2.py']
 # Add directories containing scripts here. All scripts will be added to the
 # global namespace as functions.
 config['scriptdirs'] = [
-        'examples/scripts',
-#        'd:/scripts',
+        os.path.join(BASE,'measurement/scripts'),
 ]
 
 ## This sets a user instrument directory
 ## Any instrument drivers placed here will take
 ## preference over the general instrument drivers
-#config['user_insdir'] = 'd:/instruments'
+config['user_insdir'] = os.path.join(BASE,'measurement/instruments')
 
 ## For adding additional folders to the 'systm path'
 ## so python can find your modules
