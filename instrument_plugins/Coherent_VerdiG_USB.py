@@ -14,7 +14,7 @@ import logging
 import time
 
 # hardcoded DLL file, works for now.
-cohr = ctypes.windll.LoadLibrary('C:\Python Scripts\David C\CohrHOPS.dll')
+cohr = ctypes.windll.LoadLibrary('C:\measuring\measurement\lib\dll_support\CohrHOPS.dll')
 
 
 class Coherent_VerdiG_USB(Instrument):
@@ -125,7 +125,9 @@ class Coherent_VerdiG_USB(Instrument):
         self.CHK(cohr.CohrHOPS_CheckForDevices(vgDevCon_arr, ctypes.byref(vgNDevCon),
              vgDevAdded_arr, ctypes.byref(vgNDevAdded), vgDevRemoved_arr,
              ctypes.byref(vgNDevRemoved)))
+        print 'checked for dev'
         self.Ndev = vgNDevCon.value
+        print '%s' % self.Ndev
         logging.debug(__name__ + 'Got the data out. Number of devices connected: %s' % vgNDevCon.value)
         # Here we just get the first device and use that handle - this is hard
         # coding in something that might be variable in the future.
