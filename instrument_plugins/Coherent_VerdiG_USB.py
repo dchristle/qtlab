@@ -125,9 +125,9 @@ class Coherent_VerdiG_USB(Instrument):
         self.CHK(cohr.CohrHOPS_CheckForDevices(vgDevCon_arr, ctypes.byref(vgNDevCon),
              vgDevAdded_arr, ctypes.byref(vgNDevAdded), vgDevRemoved_arr,
              ctypes.byref(vgNDevRemoved)))
-        print 'checked for dev'
+        print 'Checked for Verdi devices.'
         self.Ndev = vgNDevCon.value
-        print '%s' % self.Ndev
+        print 'Found %s device(s).' % self.Ndev
         logging.debug(__name__ + 'Got the data out. Number of devices connected: %s' % vgNDevCon.value)
         # Here we just get the first device and use that handle - this is hard
         # coding in something that might be variable in the future.

@@ -163,7 +163,7 @@ def read(devchan, samples=1, freq=10000.0, minv=-10.0, maxv=10.0,
 
     data = numpy.zeros(samples, dtype=numpy.float64)
 
-    taskHandle = TaskHandle(0)
+    taskHandle = TaskHandle()
     read = int32()
     try:
         CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandle)))
@@ -190,7 +190,7 @@ def read(devchan, samples=1, freq=10000.0, minv=-10.0, maxv=10.0,
 
     finally:
         if taskHandle.value != 0:
-            #nidaq.DAQmxStopTask(taskHandle)
+            nidaq.DAQmxStopTask(taskHandle)
             nidaq.DAQmxClearTask(taskHandle)
 
     if read > 0:
@@ -226,7 +226,7 @@ def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
         data = numpy.array(data, dtype=numpy.float64)
     samples = len(data)
 
-    taskHandle = TaskHandle(0)
+    taskHandle = TaskHandle()
     written = int32()
     try:
         CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandle)))
@@ -249,7 +249,7 @@ def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
 
     finally:
         if taskHandle.value != 0:
-            #nidaq.DAQmxStopTask(taskHandle)
+            nidaq.DAQmxStopTask(taskHandle)
             nidaq.DAQmxClearTask(taskHandle)
 
     return written.value
@@ -282,6 +282,7 @@ def write_exportclk(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
     taskHandle = TaskHandle(0)
     written = int32()
     try:
+        taskName = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
         CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandle)))
         CHK(nidaq.DAQmxCreateAOVoltageChan(taskHandle, devchan, "",
             float64(minv), float64(maxv), DAQmx_Val_Volts, None))
@@ -302,7 +303,7 @@ def write_exportclk(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
 
     finally:
         if taskHandle.value != 0:
-            nidaq.DAQmxStopTask(taskHandle)
+            #nidaq.DAQmxStopTask(taskHandle)
             nidaq.DAQmxClearTask(taskHandle)
 
     return written.value
@@ -361,7 +362,7 @@ def read_counter(devchan="/Dev1/ctr0", samples=1, freq=1.0, timeout=1.0, src="")
 
             #print '%s' % CHK(nidaq.DAQmxStopTask(taskHandle))
             CHK(nidaq.DAQmxTaskControl(taskHandle,int(5)))
-            #CHK(nidaq.DAQmxClearTask(taskHandle))
+            CHK(nidaq.DAQmxClearTask(taskHandle)) # Re-added this line 2/28/14
 
     if nread.value == 1:
         return int(data[0])

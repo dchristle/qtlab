@@ -32,6 +32,10 @@ class ThorLabs_ITC4001(Instrument):
         self._visainstrument = visa.instrument(self._address)
         Instrument.__init__(self, name, tags=['physical'])
 
+        # Note the max current value of 0.672 amperes; this is for the diode
+        # we are currently using; probably a better way to implement this somehow
+        # where the default is some small amount but the limit is modified
+        # by an entry in a measurement parameters dictionary.
 
         self.add_parameter('current',
             flags=Instrument.FLAG_GETSET,
@@ -153,14 +157,14 @@ class ThorLabs_ITC4001(Instrument):
         # Check if TEC is on before enabling laser
         current_TEC_status = self.do_get_TEC_status()
         if current_TEC_status == 0:
-            logging.error(__name__ + 'current source could not be set -- TEC is off. TEC status: %s' % current_TEC_status)
+            logging.error(__name__ + ' : current source could not be set -- TEC is off. TEC status: %s' % current_TEC_status)
             return -1
         elif current_TEC_status == 1:
             logging.debug(__name__ + ' : set laser diode current source to status %d' % source_status)
             self._visainstrument.write('OUTP1:STATE %d' % source_status)
             return 0
         else:
-            logging.error(__name__ + 'unknown TEC status!')
+            logging.error(__name__ + ' : unknown TEC status!')
             return -2
     def do_set_TEC_status(self, TEC_status):
         '''
@@ -231,7 +235,7 @@ class ThorLabs_ITC4001(Instrument):
 
     def on(self):
         tol = 0.15 # This is the tolerance in C we wait to achieve
-        logging.debug(__name__ + 'turning laser on using shortcut on function')
+        logging.debug(__name__ + ' : turning laser on using shortcut on function')
         self.set_TEC_status(1)
         tempSP = self.do_get_temperatureSP()
         qt.msleep(1)
@@ -247,7 +251,7 @@ class ThorLabs_ITC4001(Instrument):
             qt.msleep(1)
             total_time = total_time + 1
             if total_time > 20:
-                logging.error(__name__ + 'did not achieve setpoint within 20 s, breaking')
+                logging.error(__name__ + ' : did not achieve setpoint within 20 s, breaking')
                 break
 
         # now set the laser on
@@ -266,7 +270,7 @@ class ThorLabs_ITC4001(Instrument):
                 qt.msleep(1)
                 total_time = total_time + 1
                 if total_time > 20:
-                  logging.error(__name__ + 'did not achieve setpoint within 20 s, breaking')
+                  logging.error(__name__ + ' : did not achieve setpoint within 20 s, breaking')
                   self.set_source_status(0)
                   qt.msleep(5)
                   self.set_TEC_status(0)
@@ -275,7 +279,7 @@ class ThorLabs_ITC4001(Instrument):
         return
 
     def off(self):
-        logging.debug(__name__ + 'turning laser off using shortcut off function')
+        logging.debug(__name__ + ' : turning laser off using shortcut off function')
         self.set_source_status(0)
         qt.msleep(5)
         self.set_TEC_status(0)

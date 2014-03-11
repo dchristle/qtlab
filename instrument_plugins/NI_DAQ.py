@@ -140,6 +140,7 @@ class NI_DAQ(Instrument):
 
     # Dummy
     def do_set_counter_src(self, val, channel):
+
         return True
 
     def digital_out(self, lines, val):

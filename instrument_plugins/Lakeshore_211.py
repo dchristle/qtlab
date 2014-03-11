@@ -49,7 +49,7 @@ class Lakeshore_211(Instrument):
         logging.debug(__name__ + ' : Opening serial connection')
 
         self._visa = pyvisa.visa.SerialInstrument(self._address,
-                start_bits=1, baud_rate=9600, data_bits=7, stop_bits=1,
+                baud_rate=9600, data_bits=7, stop_bits=1,
                 parity=pyvisa.visa.odd_parity, term_chars="\r\n",
                 timeout=2)
         # The purpose of the short timeout is so that the buffer_clear()
