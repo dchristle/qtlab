@@ -260,11 +260,13 @@ def write_and_count(devchan, ctrchan, src, aochan, vdata, freq=10000.0, minv=-10
     Write values to channel
 
     Input:
-        devchan (string): device/channel specifier, such as Dev1/ao0
-        ctrchan (string): device/counter specifier, such as Dev1/ctr0
-        aochan (string): device/ao sampleclock specifier, e.g. Dev1/ao/SampleClock
-        data (int/float/numpy.array): data to write
-        freq (float): the the minimum voltage
+        devchan (string): device/channel specifier, such as /Dev1/ao0
+        ctrchan (string): device/counter specifier, such as /Dev1/ctr0
+        src (string): device terminal to detect edges on, such as PFI0
+        aochan (string): device/ao sampleclock specifier, e.g. /Dev1/ao/SampleClock
+        data (numpy.array): data to write
+        freq (float): the frequency at which to write the AO samples (and count)
+        minv (float): the minimum voltage
         maxv (float): the maximum voltage
         timeout (float): the time in seconds to wait for completion
 
@@ -341,9 +343,7 @@ def write_and_count(devchan, ctrchan, src, aochan, vdata, freq=10000.0, minv=-10
         # array of uint32 values corresponding to the counts samples from the
         # counter at each instant of the analog out voltage being written
         #print 'Going to read samples.'
-##        CHK(nidaq.DAQmxReadCounterU32(taskHandleCtr, int32(-1), float64(timeout),
-##            cdata.ctypes.data, uInt32(samples),
-##            ctypes.byref(nread), None))
+
         CHK(nidaq.DAQmxReadCounterU32(taskHandleCtr, -1, float64(timeout),
             cdata.ctypes.data, uInt32(samples),
             ctypes.byref(nread), None))

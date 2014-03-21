@@ -40,6 +40,7 @@ class Newport_FSM(Instrument):
                     'default' : 0.,
                     'origin' : 0.,
                     'ao_function' : 'set_ao0',
+                    'ao_channel' : 'ao0'
                     },
                 'Y' : {
                     'micron_per_volt' : 9.3,
@@ -48,6 +49,7 @@ class Newport_FSM(Instrument):
                     'default' : 0.,
                     'origin' : 0.,
                     'ao_function' : 'set_ao1',
+                    'ao_channel' : 'ao1'
                     },
                 }
         # Instrument parameters
@@ -127,6 +129,22 @@ class Newport_FSM(Instrument):
             self.do_set_abs_position(x_c, channel)
             time.sleep(1.0/float(rate))
         return
+    def sweep_and_count(self, x_um_array, rate, ctr, term, channel):
+        # Hard coded device - should change
+        ni63 = qt.instruments['NIDAQ6363']
+        # Set the terminal of the corresponding counter to the desired terminal
+        print '%s' % ((ctr + '_src'))
+        local_ctr_src_function = getattr(ni63, ('set_' + ctr + '_src'))
+        local_ctr_src_function(term)
+        ni63.set_count_time(1.0/rate)
+        # Create voltage array by doing the conversion
+        x_V_array = self.convert_um_to_V(x_um_array, channel)
+        # Execute write and count function with raw voltage values
+
+        carray = ni63.write_and_count(x_V_array,
+            self.fsm_dimensions[channel]['ao_channel'],ctr)
+
+        return carray
     def zero(self):
         # Zero out both FSM voltages.
         self.set_abs_positionX(self.convert_V_to_um(0, 'X'))
