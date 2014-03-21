@@ -138,6 +138,17 @@ class NI_DAQ(Instrument):
             srcs.append(self.get(chan + "_src"))
         return nidaq.read_counters(chans, src=srcs, freq=1.0/self._count_time)
 
+    def write_and_count(self, vdata, devchan, ctrchan):
+        # Format the various channels and terminals correctly for what the DAQ
+        # routines expect.
+        cchan = '/%s/%s' % (self._id, ctrchan)
+        src = self.get(ctrchan + "_src")
+        aochan = '/%s/%s' % (self._id, 'ao/SampleClock')
+        aodevchan = '/%s/%s' % (self._id, devchan)
+
+        return nidaq.write_and_count(aodevchan, cchan, src, aochan, vdata, 1.0/self._count_time, -10.0, 10.0,
+                10.0)
+
     # Dummy
     def do_set_counter_src(self, val, channel):
 
