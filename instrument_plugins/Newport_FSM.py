@@ -18,14 +18,14 @@ import logging
 import time
 import qt
 
-# Import the DAQ as an instrument object to write to.
-ni63 = qt.instruments['NIDAQ6363']
+
 
 class Newport_FSM(Instrument):
 
     def __init__(self, name, channels=2):
         Instrument.__init__(self, name, tags=['positioner'])
-
+        # Import the DAQ as an instrument object to write to.
+        self._ni63 = qt.instruments['NIDAQ6363']
         # Store related constants for the FSM here; the only important
         # ones are the micron_per_volt conversion, which is calibrated somewhat
         # infrequently, and the min_v and max_v. These min/max voltages should
@@ -40,6 +40,7 @@ class Newport_FSM(Instrument):
                     'default' : 0.,
                     'origin' : 0.,
                     'ao_function' : 'set_ao0',
+                    'ao_read_function' : 'get_ao0',
                     'ao_channel' : 'ao0'
                     },
                 'Y' : {
@@ -49,6 +50,7 @@ class Newport_FSM(Instrument):
                     'default' : 0.,
                     'origin' : 0.,
                     'ao_function' : 'set_ao1',
+                    'ao_read_function' : 'get_ao1',
                     'ao_channel' : 'ao1'
                     },
                 }
@@ -69,8 +71,7 @@ class Newport_FSM(Instrument):
         self.add_function('zero')
 
 
-    def do_get_position(self, query=True):
-        return [0, 0, 0]
+
 
 
     def do_set_speed(self, val):
@@ -89,12 +90,24 @@ class Newport_FSM(Instrument):
         # Just do the micron-to-volt conversion using the hardcoded constants
         x_volts = (x_um-self.fsm_dimensions[channel]['origin']) *(
         1/self.fsm_dimensions[channel]['micron_per_volt'])
-
         return x_volts
+
     def convert_V_to_um(self, x_V, channel):
         # Just do the micron-to-volt conversion using the hardcoded constants
         x_um = x_V*self.fsm_dimensions[channel]['micron_per_volt']+self.fsm_dimensions[channel]['origin']
         return x_um
+
+    def do_get_abs_position(self, channel):
+        # This function is only a *soft* get, meaning using the FSM in LabView,
+        # for example with the 2D scanner, will not properly update the value
+        # read by this function.
+        #
+        # For now, translating between LabView and QtLab will involve just taking
+        # the absolute position from LabView and setting the FSM to this position
+        # using the set_abs_position function.
+        getao_func = getattr(self._ni63, self.fsm_dimensions[channel]['ao_read_function'])
+        current_V = getao_func()
+        return convert_V_to_um(current_V, channel)
 
     def do_set_abs_position(self, x_um, channel):
         # Convert to volts first
@@ -104,7 +117,7 @@ class Newport_FSM(Instrument):
         if (x_volts >= self.fsm_dimensions[channel]['min_v'] and
             x_volts <= self.fsm_dimensions[channel]['max_v']):
 
-            local_AO_function = getattr(ni63, self.fsm_dimensions[channel]['ao_function'])
+            local_AO_function = getattr(self._ni63, self.fsm_dimensions[channel]['ao_function'])
             result = local_AO_function(x_volts)
             #print 'Moving to %r at %s V' % (x_um, x_volts)
             return 0
@@ -112,6 +125,7 @@ class Newport_FSM(Instrument):
             print 'Could not set position -- voltage bounds exceeded -- V was: %s' % x_volts
             logging.debug(__name__ + 'voltage bounds exceeded')
             return -1
+
     def simple_sweep_um(self, x_um_array, rate, channel):
         # This is a crude sweep that just uses repeated software calls. This is
         # in contrast to a hardware-controlled sweep that loads the points and
@@ -120,6 +134,7 @@ class Newport_FSM(Instrument):
             self.do_set_abs_position(x_c, channel)
             time.sleep(1.0/float(rate))
         return
+
     def simple_sweep_V(self, x_V_array, rate, channel):
         # This is a crude sweep that just uses repeated software calls. This is
         # in contrast to a hardware-controlled sweep that loads the points and
@@ -129,12 +144,11 @@ class Newport_FSM(Instrument):
             self.do_set_abs_position(x_c, channel)
             time.sleep(1.0/float(rate))
         return
+
     def sweep_and_count(self, x_um_array, rate, ctr, term, channel):
-        # Hard coded device - should change
-        ni63 = qt.instruments['NIDAQ6363']
         # Set the terminal of the corresponding counter to the desired terminal
         print '%s' % ((ctr + '_src'))
-        local_ctr_src_function = getattr(ni63, ('set_' + ctr + '_src'))
+        local_ctr_src_function = getattr(self._ni63, ('set_' + ctr + '_src'))
         local_ctr_src_function(term)
         ni63.set_count_time(1.0/rate)
         # Create voltage array by doing the conversion
@@ -145,6 +159,7 @@ class Newport_FSM(Instrument):
             self.fsm_dimensions[channel]['ao_channel'],ctr)
 
         return carray
+
     def zero(self):
         # Zero out both FSM voltages.
         self.set_abs_positionX(self.convert_V_to_um(0, 'X'))
