@@ -17,6 +17,8 @@ import types
 import logging
 import time
 import qt
+import math
+import numpy as np
 
 
 
@@ -150,15 +152,31 @@ class Newport_FSM(Instrument):
         print '%s' % ((ctr + '_src'))
         local_ctr_src_function = getattr(self._ni63, ('set_' + ctr + '_src'))
         local_ctr_src_function(term)
-        ni63.set_count_time(1.0/rate)
+        self._ni63.set_count_time(1.0/rate)
         # Create voltage array by doing the conversion
         x_V_array = self.convert_um_to_V(x_um_array, channel)
         # Execute write and count function with raw voltage values
 
-        carray = ni63.write_and_count(x_V_array,
+        carray = self._ni63.write_and_count(x_V_array,
             self.fsm_dimensions[channel]['ao_channel'],ctr)
 
         return carray
+
+    def AO_smooth(self, x_init, x_final, channel):
+        # Use a cosine function to interpolate between two positions
+        ao_smooth_rate = 50000.0 # Hz
+        ao_smooth_steps_per_volt = 1000.0 # 1000 steps per Volt of movement
+        # Convert initial and final positions to volts
+        v_init = self.convert_um_to_V(x_init, channel)
+        v_final = self.convert_um_to_V(x_final, channel)
+        # Compute the number of steps we're going to use
+        n_steps = math.ceil((v_final-v_init)/ao_smooth_steps_per_volt)
+        # Create the array of voltage points
+        v_array = v_init + (v_final-v_init)*(1.0-np.cos(np.linspace(0.0,np.pi,n_steps)))/2.0
+        # Now write the array to the appropriate DAQ channel
+        return self._ni63.write(v_array, ao_smooth_rate, -10.0, 10.0,
+                10.0, self.fsm_dimensions[channel]['ao_channel'])
+
 
     def zero(self):
         # Zero out both FSM voltages.
