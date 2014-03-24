@@ -83,6 +83,8 @@ class NI_DAQ(Instrument):
 
         self.add_function('reset')
         self.add_function('digital_out')
+        self.add_function('write')
+        self.add_function('write_and_count')
         #self.add_function('AOsweep_exportclk')
         #self.add_function('AOsweep_DAQcount')
 
