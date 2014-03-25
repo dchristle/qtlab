@@ -234,9 +234,6 @@ def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
         CHK(nidaq.DAQmxCreateAOVoltageChan(taskHandle, devchan, "",
                 float64(minv), float64(maxv), DAQmx_Val_Volts, None))
 
-        print 'length of data is %s' % (len(data))
-        print 'data is %s' % data
-        print 'type of data is %s' % (type(data))
         if len(data) == 1:
             CHK(nidaq.DAQmxWriteAnalogScalarF64(taskHandle, 1, float64(timeout),
                 float64(data[0]), None))
