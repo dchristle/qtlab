@@ -1,7 +1,7 @@
 from ctypes import *
 import os
-from instrument_plugins._Spectrum_M2i2030.errors import errors as _spcm_errors
-from instrument_plugins._Spectrum_M2i2030.regs import regs as _spcm_regs
+from qtlab.instrument_plugins._Spectrum_M2i2030.errors import errors as _spcm_errors
+from qtlab.instrument_plugins._Spectrum_M2i2030.regs import regs as _spcm_regs
 from instrument import Instrument
 import pickle
 from time import sleep, time
@@ -21,7 +21,7 @@ class PicoHarp_PH300(Instrument): #1
     Usage:
     Initialize with
     <name> = qt.instruments.create('name', 'PicoHarp_PH300')
-    
+
     status:
      1) create this driver!=> is never finished
     TODO:
@@ -72,7 +72,7 @@ class PicoHarp_PH300(Instrument): #1
     def _load_dll(self): #3
         print __name__ +' : Loading phlib.dll'
         WINDIR=os.environ['WINDIR']
-        self._PH300_win32 = windll.LoadLibrary(WINDIR+'\\System32\\phlib')
+        self._PH300_win32 = windll.LoadLibrary('C:\\measuring\\qtlab\\instrument_plugins\\_PicoHarp\\phlib.dll')
         sleep(0.02)
 
     def _init_continue(self):
@@ -97,7 +97,7 @@ class PicoHarp_PH300(Instrument): #1
         self.get_Flag_FifoFull()
         self.get_Flag_Overflow()
         self.get_MeasRunning()
-        
+
     def start_histogram_mode(self):
         if self._PH300_win32.PH_Initialize(self.DevIdx, 0) != 0:
             logging.warning(__name__ + ' : Histogramming mode could not be started')
@@ -229,13 +229,13 @@ class PicoHarp_PH300(Instrument): #1
 
     def _do_get_Flags(self):
         return self._PH300_win32.PH_GetFlags(self.DevIdx)
-        
+
     def _do_get_Flag_Overflow(self):
         return self._PH300_win32.PH_GetFlags(self.DevIdx) & 0x0040 == 0x0040
-        
+
     def _do_get_Flag_FifoFull(self):
         return self._PH300_win32.PH_GetFlags(self.DevIdx) & 0x0003 == 0x0003
-        
+
     def _do_get_ElapsedMeasTime(self):
         return self._PH300_win32.PH_GetElapsedMeasTime(self.DevIdx)
 
@@ -253,7 +253,7 @@ class PicoHarp_PH300(Instrument): #1
         if length < 0:
             logging.warning(__name__ + ' : error in PH_TTReadData')
         return length, data
-        
+
     def set_MarkerEdges(self,me):
         if me == 1:
             me0 = 1
@@ -271,5 +271,5 @@ class PicoHarp_PH300(Instrument): #1
         success = self._PH300_win32.PH_TTSetMarkerEdges(self.DevIdx, me0, me1, 0, 0)
         if success < 0:
             logging.warning(__name__ + ' : error in PH_TTSetMarkerEdges')
-            
+
 

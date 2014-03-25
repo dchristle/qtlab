@@ -9,3 +9,10 @@ tmp
 instrument_plugins/XPS_Q8_drivers.py
 analysis
 *.tmp
+instrument_plugins/_PicoHarp/phlib.dll
+source/lib/dll_support/phlib.dll
+.gitignore.bak
+userconfig.py
+SyncToy_da77666b-a160-4f16-9352-3f53bbd823c7.dat
+gui_client.cfg
+*.bak

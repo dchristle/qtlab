@@ -14,7 +14,7 @@ import logging
 import time
 
 # hardcoded DLL file, works for now.
-cohr = ctypes.windll.LoadLibrary('C:\measuring\measurement\lib\dll_support\CohrHOPS.dll')
+cohr = ctypes.windll.LoadLibrary('C:\measuring\measurement\lib\dll_support\CohrHOPS32\CohrHOPS.dll')
 
 
 class Coherent_VerdiG_USB(Instrument):
