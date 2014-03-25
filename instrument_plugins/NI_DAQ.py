@@ -81,6 +81,7 @@ class NI_DAQ(Instrument):
             type=types.FloatType,
             units='s')
 
+
         self.add_function('reset')
         self.add_function('digital_out')
         self.add_function('write')
@@ -151,14 +152,24 @@ class NI_DAQ(Instrument):
         return nidaq.write_and_count(aodevchan, cchan, src, aochan, vdata, 1.0/self._count_time, -10.0, 10.0,
                 10.0)
 
-    def write(self, data, freq=10000.0, minv=-10.0, maxv=10.0,
-                timeout=10.0, channel):
+    def write(self, data, freq, minv, maxv,
+                timeout, channel):
         # This routine is a slightly more general version of the set output
         # routine already written. The purpose here is to allow the user direct
         # access to the lower nidaq.py module's "write" function that allows
         # setting of the frequency of the write, among other things.
         devchan = '%s/%s' % (self._id, channel)
         return nidaq.write(devchan, data, freq, minv, maxv,
+                timeout)
+
+    def writearray(self, data, freq, minv, maxv,
+                timeout, channel):
+        # This routine is a slightly more general version of the set output
+        # routine already written. The purpose here is to allow the user direct
+        # access to the lower nidaq.py module's "write" function that allows
+        # setting of the frequency of the write, among other things.
+        devchan = '%s/%s' % (self._id, channel)
+        return nidaq.writearray(devchan, data, freq, minv, maxv,
                 timeout)
 
     # Dummy

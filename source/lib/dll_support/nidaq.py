@@ -232,28 +232,102 @@ def write(devchan, data, freq=10000.0, minv=-10.0, maxv=10.0,
     try:
         CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandle)))
         CHK(nidaq.DAQmxCreateAOVoltageChan(taskHandle, devchan, "",
-            float64(minv), float64(maxv), DAQmx_Val_Volts, None))
+                float64(minv), float64(maxv), DAQmx_Val_Volts, None))
 
+        print 'length of data is %s' % (len(data))
+        print 'data is %s' % data
+        print 'type of data is %s' % (type(data))
         if len(data) == 1:
             CHK(nidaq.DAQmxWriteAnalogScalarF64(taskHandle, 1, float64(timeout),
                 float64(data[0]), None))
             written = int32(1)
         else:
+            print 'multiple samples detected'
             CHK(nidaq.DAQmxCfgSampClkTiming(taskHandle, "", float64(freq),
                 DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, uInt64(samples)))
-            CHK(nidaq.DAQmxWriteAnalogF64(taskHandle, samples, 0, float64(timeout),
+            CHK(nidaq.DAQmxWriteAnalogF64(taskHandle, samples, True, float64(timeout),
                 DAQmx_Val_GroupByChannel, data.ctypes.data,
                 ctypes.byref(written), None))
-            CHK(nidaq.DAQmxStartTask(taskHandle))
+            #CHK(nidaq.DAQmxStartTask(taskHandle))
     except Exception, e:
         logging.error('NI DAQ call failed (correct channel configuration selected?): %s', str(e))
 
     finally:
         if taskHandle.value != 0:
-            nidaq.DAQmxStopTask(taskHandle)
+            #CHK(nidaq.DAQmxTaskControl(taskHandle,int(5)))
             nidaq.DAQmxClearTask(taskHandle)
 
     return written.value
+
+def writearray(devchan, vdata, freq=10000.0, minv=-10.0, maxv=10.0,
+                timeout=10.0):
+    '''
+    Write values to channel
+
+    Input:
+        devchan (string): device/channel specifier, such as /Dev1/ao0
+        ctrchan (string): device/counter specifier, such as /Dev1/ctr0
+        src (string): device terminal to detect edges on, such as PFI0
+        aochan (string): device/ao sampleclock specifier, e.g. /Dev1/ao/SampleClock
+        data (numpy.array): data to write
+        freq (float): the frequency at which to write the AO samples (and count)
+        minv (float): the minimum voltage
+        maxv (float): the maximum voltage
+        timeout (float): the time in seconds to wait for completion
+
+    Output:
+        Number of values written
+    '''
+    # First we create a counter task and then set it to use the analog out
+    # sample clock to trigger when it actually takes samples.
+
+    taskHandleAO = TaskHandle(0)
+    nwritten = int32()
+    nread = int32()
+    samples = len(vdata)
+    cdata = numpy.zeros(samples, dtype=numpy.uint32)
+
+    try:
+        # Now start creating the analog out task to write the voltage array
+        CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandleAO)))
+        # Set up the task with an analog out channel on devchan
+        CHK(nidaq.DAQmxCreateAOVoltageChan(taskHandleAO, devchan, None,
+            float64(minv), float64(maxv), DAQmx_Val_Volts, None))
+        CHK(nidaq.DAQmxCfgSampClkTiming(taskHandleAO,"",float64(freq),DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,uInt64(samples)))
+    except Exception, e:
+        logging.error('Failed in AO setup phase: %s', str(e))
+
+    try:
+        # Send the samples to write
+        CHK(nidaq.DAQmxWriteAnalogF64(taskHandleAO, samples, True, float64(timeout),
+                DAQmx_Val_GroupByChannel, vdata.ctypes.data,
+                ctypes.byref(nwritten), None))
+    except Exception, e:
+        logging.error('Failed in AO write phase: %s', str(e))
+    try:
+        # Execute the analog out write task
+        #print 'Executing analog out write task'
+        #CHK(nidaq.DAQmxStartTask(taskHandleAO))
+        # Wait for the approximate time necessary to iterate through each of the samples
+        #print 'Waiting...'
+        time.sleep(samples*1.0/freq)
+        #print 'Wait over.'
+        # Now read using the ReadCounterU32 function, which should return an
+        # array of uint32 values corresponding to the counts samples from the
+        # counter at each instant of the analog out voltage being written
+        #print 'Going to read samples.'
+
+
+
+    except Exception, e:
+        logging.error('NI DAQ new counter read call failed: %s', str(e))
+
+    finally:
+        if taskHandleAO.value != 0:
+            nidaq.DAQmxStopTask(taskHandleAO)
+            nidaq.DAQmxClearTask(taskHandleAO)
+
+    return cdata
 def write_and_count(devchan, ctrchan, src, aochan, vdata, freq=10000.0, minv=-10.0, maxv=10.0,
                 timeout=10.0):
     '''
