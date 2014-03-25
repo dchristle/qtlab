@@ -149,9 +149,8 @@ class Newport_FSM(Instrument):
 
     def sweep_and_count(self, x_um_array, rate, ctr, term, channel):
         # Set the terminal of the corresponding counter to the desired terminal
-        print '%s' % ((ctr + '_src'))
-        local_ctr_src_function = getattr(self._ni63, ('set_' + ctr + '_src'))
-        local_ctr_src_function(term)
+        funcname = ('set_' + ctr + '_src')
+        getattr(self._ni63, funcname)(term)
         self._ni63.set_count_time(1.0/rate)
         # Create voltage array by doing the conversion
         x_V_array = self.convert_um_to_V(x_um_array, channel)
@@ -170,11 +169,11 @@ class Newport_FSM(Instrument):
         v_init = self.convert_um_to_V(x_init, channel)
         v_final = self.convert_um_to_V(x_final, channel)
         # Compute the number of steps we're going to use
-        n_steps = math.ceil((v_final-v_init)/ao_smooth_steps_per_volt)
+        n_steps = math.ceil(np.abs((v_final-v_init))*ao_smooth_steps_per_volt)
         # Create the array of voltage points
-        v_array = v_init + (v_final-v_init)*(1.0-np.cos(np.linspace(0.0,np.pi,n_steps)))/2.0
+        v_array = v_init*np.ones(n_steps) + (v_final-v_init)*(1.0-np.cos(np.linspace(0.0,np.pi,n_steps)))/2.0
         # Now write the array to the appropriate DAQ channel
-        return self._ni63.write(v_array, ao_smooth_rate, -10.0, 10.0,
+        return self._ni63.writearray(v_array, ao_smooth_rate, -10.0, 10.0,
                 10.0, self.fsm_dimensions[channel]['ao_channel'])
 
 
