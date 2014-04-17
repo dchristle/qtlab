@@ -14,7 +14,7 @@ from qt import *
 from numpy import *
 from data import Data
 
-class PicoHarp_PH300(Instrument): #1
+class PicoHarp_PH300_v3(Instrument): #1
     '''
     This is the driver for the PicoHarp PH300 Time Correlated Single Photon Counting module
 
@@ -44,22 +44,20 @@ class PicoHarp_PH300(Instrument): #1
 
         self.OpenDevice()
 
-        self.add_parameter('Range', flags = Instrument.FLAG_SET, type=types.IntType)
+        self.add_parameter('Binning', flags = Instrument.FLAG_SET, type=types.IntType)
         self.add_parameter('Offset', flags = Instrument.FLAG_SET, type=types.IntType)
         self.add_parameter('SyncDiv', flags = Instrument.FLAG_SET, type=types.IntType)
         self.add_parameter('Resolution', flags = Instrument.FLAG_GET, type=types.IntType)
         self.add_parameter('BaseResolution', flags = Instrument.FLAG_GET, type=types.IntType)
-        self.add_parameter('CFDLevel0', flags = Instrument.FLAG_SET, type=types.IntType)
-        self.add_parameter('CFDLevel1', flags = Instrument.FLAG_SET, type=types.IntType)
-        self.add_parameter('CFDZeroCross0', flags = Instrument.FLAG_SET, type=types.IntType)
-        self.add_parameter('CFDZeroCross1', flags = Instrument.FLAG_SET, type=types.IntType)
         self.add_parameter('CountRate0', flags = Instrument.FLAG_GET, type=types.IntType)
         self.add_parameter('CountRate1', flags = Instrument.FLAG_GET, type=types.IntType)
         self.add_parameter('ElapsedMeasTime', flags = Instrument.FLAG_GET, type=types.IntType)
         self.add_parameter('MeasRunning', flags = Instrument.FLAG_GET, type=types.BooleanType)
         self.add_parameter('Flag_Overflow', flags = Instrument.FLAG_GET, type=types.BooleanType)
         self.add_parameter('Flag_FifoFull', flags = Instrument.FLAG_GET, type=types.BooleanType)
+        self.add_parameter('SyncOffset', flags = Instrument.FLAG_SET, type=types.IntType)
         self.add_function('start_histogram_mode')
+        self.add_function('get_Histogram')
         self.add_function('start_T2_mode')
         self.add_function('start_T3_mode')
         self.add_function('ClearHistMem')
@@ -67,6 +65,9 @@ class PicoHarp_PH300(Instrument): #1
         self.add_function('StopMeas')
         self.add_function('OpenDevice')
         self.add_function('CloseDevice')
+        self.add_function('set_InputCFD0')
+        self.add_function('set_InputCFD1')
+        self.add_function('get_CountRate')
         self.start_histogram_mode()
 
 
@@ -78,16 +79,17 @@ class PicoHarp_PH300(Instrument): #1
 
     def _init_continue(self):
         HardwareModel = numpy.array([16*' '])
+        HardwarePartnum = numpy.array([8*' '])
         HardwareVersion = numpy.array([8*' '])
-        if self._PH300_win32.PH_GetHardwareVersion(self.DevIdx, HardwareModel.ctypes.data, HardwareVersion.ctypes.data) != 0:
+        if self._PH300_win32.PH_GetHardwareInfo(self.DevIdx, HardwareModel.ctypes.data, HardwarePartnum.ctypes.data, HardwareVersion.ctypes.data) != 0:
             logging.warning(__name__ + ' : error getting hardware version')
         if self._PH300_win32.PH_Calibrate(self.DevIdx) != 0:
             logging.warning(__name__ + ' : calibration error')
 
-        self._do_set_CFDLevel(200)
-        self._do_set_CFDZeroCross(10)
+        self.set_InputCFD0(199,10)
+        self.set_InputCFD1(200,10)
         self.set_SyncDiv(1)
-        self.set_Range(0)
+        self.set_Binning(0)
         self.set_Offset(0)
         self._do_set_StopOverflow(0,65535)
         self.set_SyncOffset(0)
@@ -118,63 +120,56 @@ class PicoHarp_PH300(Instrument): #1
             logging.warning(__name__ + ' : T3 mode could not be started')
         self._init_continue()
 
+    def set_InputCFD0(self, level, zerocross):
+        success = self._PH300_win32.PH_SetInputCFD(self.DevIdx, 0 , level, zerocross)
+
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_SetCFDLevel')
+        return
+    def set_InputCFD1(self, level, zerocross):
+        success = self._PH300_win32.PH_SetInputCFD(self.DevIdx, 1 , level, zerocross)
+
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_SetCFDLevel')
+        return
+
     def _do_get_BaseResolution(self):
-        BaseResolution = self._PH300_win32.PH_GetBaseResolution(self.DevIdx)
-        if BaseResolution < 0:
-            logging.warning(__name__ + ' : error in PH_GetBaseResolution')
-        self.BaseResolution = BaseResolution
+        # Could not get this to work -- something wrong with the call?
+        #BaseResolution = c_double()
+        #success = self._PH300_win32.PH_GetBaseResolution(self.DevIdx, byref(BaseResolution))
+        #if success < 0:
+        #    logging.warning(__name__ + ' : error in PH_GetBaseResolution')
+        #self.BaseResolution = BaseResolution.value
+        #print 'Base resolution: %s' % BaseResolution.value
+        self.BaseResolution = 4
         return self.BaseResolution
 
     def _do_get_Resolution(self):
-        Resolution = self._PH300_win32.PH_GetResolution(self.DevIdx)
-        if Resolution < 0:
+        Resolution = c_double()
+        success = self._PH300_win32.PH_GetResolution(self.DevIdx, byref(Resolution))
+        if success < 0:
             logging.warning(__name__ + ' : error in PH_GetResolution')
         self.Resolution = Resolution
-        return self.Resolution
+        return self.Resolution.value
 
     def _do_get_CountRate0(self):
-        CountRate = self._PH300_win32.PH_GetCountRate(self.DevIdx, 0)
-        if CountRate < 0:
+        CountRate = c_int()
+        success = self._PH300_win32.PH_GetCountRate(self.DevIdx, 0, byref(CountRate))
+        if success < 0:
             logging.warning(__name__ + ' : error in PH_GetCountRate')
-        return CountRate
+        return CountRate.value
 
     def _do_get_CountRate1(self):
-        CountRate = self._PH300_win32.PH_GetCountRate(self.DevIdx, 1)
-        if CountRate < 0:
+        CountRate = c_int()
+        success = self._PH300_win32.PH_GetCountRate(self.DevIdx, 1, byref(CountRate))
+        if success < 0:
             logging.warning(__name__ + ' : error in PH_GetCountRate')
-        return CountRate
+        return CountRate.value
 
-    def _do_get_CountRate(self):
+    def get_CountRate(self):
         CountRate = self._do_get_CountRate0() + self._do_get_CountRate1()
         return CountRate
 
-    def _do_set_CFDLevel0(self, value):
-        success = self._PH300_win32.PH_SetCFDLevel(self.DevIdx, 0, value)
-        if success < 0:
-            logging.warning(__name__ + ' : error in PH_SetCFDLevel')
-
-    def _do_set_CFDLevel1(self, value):
-        success = self._PH300_win32.PH_SetCFDLevel(self.DevIdx, 1, value)
-        if success < 0:
-            logging.warning(__name__ + ' : error in PH_SetCFDLevel')
-
-    def _do_set_CFDLevel(self, value):
-        self.set_CFDLevel0(value)
-        self.set_CFDLevel1(value)
-
-    def _do_set_CFDZeroCross0(self, value):
-        success = self._PH300_win32.PH_SetCFDZeroCross(self.DevIdx, 0, value)
-        if success < 0:
-            logging.warning(__name__ + ' : error in PH_SetCFDZeroCross')
-
-    def _do_set_CFDZeroCross1(self, value):
-        success = self._PH300_win32.PH_SetCFDZeroCross(self.DevIdx, 1, value)
-        if success < 0:
-            logging.warning(__name__ + ' : error in PH_SetCFDZeroCross')
-
-    def _do_set_CFDZeroCross(self, value):
-        self.set_CFDZeroCross0(value)
-        self.set_CFDZeroCross1(value)
 
     def _do_set_SyncDiv(self, div):
         success = self._PH300_win32.PH_SetSyncDiv(self.DevIdx, div)
@@ -186,10 +181,10 @@ class PicoHarp_PH300(Instrument): #1
         if success < 0:
             logging.warning(__name__ + ' : error in PH_SetStopOverflow')
 
-    def _do_set_Range(self, binsize):  # binsize in 2^n times base resolution (4ps)
-        success = self._PH300_win32.PH_SetRange(self.DevIdx, binsize)
+    def _do_set_Binning(self, binsize):  # binsize in 2^n times base resolution (4ps)
+        success = self._PH300_win32.PH_SetBinning(self.DevIdx, binsize)
         if success < 0:
-            logging.warning(__name__ + ' : error in PH_SetRange')
+            logging.warning(__name__ + ' : error in PH_SetBinning')
 
     def _do_set_Offset(self, offset):
         success = self._PH300_win32.PH_SetOffset(self.DevIdx, offset)
@@ -234,25 +229,52 @@ class PicoHarp_PH300(Instrument): #1
             logging.warning(__name__ + ' : error in PH_CloseDevice')
 
     def _do_get_MeasRunning(self):
-        running = self._PH300_win32.PH_CTCStatus(self.DevIdx)
-        return (running == 0)
+        ctcstatus = c_int()
+        success = self._PH300_win32.PH_CTCStatus(self.DevIdx, byref(ctcstatus))
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_CTCStatus')
+        return ctcstatus.value == 0
 
     def _do_get_Flags(self):
-        return self._PH300_win32.PH_GetFlags(self.DevIdx)
+        flags = c_int()
+        success =  self._PH300_win32.PH_GetFlags(self.DevIdx, byref(flags))
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_GetFlags')
+        return flags.value
 
     def _do_get_Flag_Overflow(self):
-        return self._PH300_win32.PH_GetFlags(self.DevIdx) & 0x0040 == 0x0040
+        flags = c_int()
+        success =  self._PH300_win32.PH_GetFlags(self.DevIdx, byref(flags))
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_GetFlags')
+        return flags.value & 0x0040 == 0x0040
 
     def _do_get_Flag_FifoFull(self):
-        return self._PH300_win32.PH_GetFlags(self.DevIdx) & 0x0003 == 0x0003
+        flags = c_int()
+        success =  self._PH300_win32.PH_GetFlags(self.DevIdx, byref(flags))
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_GetFlags')
+
+        return flags.value & 0x0003 == 0x0003
 
     def _do_get_ElapsedMeasTime(self):
-        return self._PH300_win32.PH_GetElapsedMeasTime(self.DevIdx)
+        ElapsedMeasTime = c_double()
+        success= self._PH300_win32.PH_GetElapsedMeasTime(self.DevIdx, byref(ElapsedMeasTime))
+        if success < 0:
+            logging.warning(__name__ + ' : error in GetElapsedMeasTime')
+        return ElapsedMeasTime.value
 
     def get_Block(self):
         data = numpy.array(numpy.zeros(65536), dtype = numpy.uint32)
 
         success = self._PH300_win32.PH_GetBlock(self.DevIdx,data.ctypes.data,0)
+        if success < 0:
+            logging.warning(__name__ + ' : error in PH_GetBlock')
+        return data
+    def get_Histogram(self):
+        data = numpy.array(numpy.zeros(65536), dtype = numpy.uint32)
+
+        success = self._PH300_win32.PH_GetHistogram(self.DevIdx,data.ctypes.data,0)
         if success < 0:
             logging.warning(__name__ + ' : error in PH_GetBlock')
         return data

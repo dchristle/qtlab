@@ -72,13 +72,13 @@ class PicoHarp_PH300(Instrument): #1
     def _load_dll(self): #3
         print __name__ +' : Loading phlib.dll'
         WINDIR=os.environ['WINDIR']
-        self._PH300_win32 = windll.LoadLibrary('C:\\measuring\\qtlab\\instrument_plugins\\_PicoHarp\\phlib.dll')
+        self._PH300_win32 = windll.phlib
         sleep(0.02)
 
     def _init_continue(self):
         HardwareModel = numpy.array([16*' '])
         HardwareVersion = numpy.array([8*' '])
-        if self._PH300_win32.PH_GetHardwareVersion(self.DevIdx, HardwareModel.ctypes.data, HardwareVersion.ctypes.data) != 0:
+        if self._PH300_win32.PH_GetHardwareInfo(self.DevIdx, HardwareModel.ctypes.data, HardwareVersion.ctypes.data) != 0:
             logging.warning(__name__ + ' : error getting hardware version')
         if self._PH300_win32.PH_Calibrate(self.DevIdx) != 0:
             logging.warning(__name__ + ' : calibration error')
