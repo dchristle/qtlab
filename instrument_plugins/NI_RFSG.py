@@ -66,8 +66,8 @@ selfTestMessage = (ViChar * 256)("0")
 
 # Bring in the NI RFSG DLL using ctypes.
 
-nfsglib = ctypes.windll.LoadLibrary("C:\\Python Scripts\\FJH Test\\niRFSG_64.dll")
-
+# nfsglib = ctypes.windll.LoadLibrary("C:\\Python Scripts\\FJH Test\\niRFSG_64.dll")
+nfsglib = ctypes.windll.niRFSG
 
 class NI_RFSG(Instrument):
     '''
@@ -89,7 +89,8 @@ class NI_RFSG(Instrument):
         '''
 
         # initialize the NI-RFSG port
-        nfsglib.niRFSG_init(resource_name,VI_True,VI_True,ctypes.byref(viSession))
+        self._resource_name = resource_name
+        nfsglib.niRFSG_init(self._resource_name,VI_True,VI_True,ctypes.byref(viSession))
 
         self._viSession = viSession
         logging.info(__name__ + ' : Initializing instrument NI_RFSG')
@@ -105,9 +106,11 @@ class NI_RFSG(Instrument):
 
         # Add other functions
         self.add_function('reset')
-        self.add_function ('get_all')
+        self.add_function('get_all')
+        self.add_function('reset_device')
         self.add_function('on')
         self.add_function('off')
+        self.add_function('wait_until_settled')
 
         # Define default values of frequency and power. These are internal
         # properties that are kept track of in self._freq and self._power.
@@ -158,6 +161,9 @@ class NI_RFSG(Instrument):
     def close(self):
         retVal = nfsglib.niRFSG_close (self._viSession)
         return retVal
+    def init_device(self):
+        retVal = nfsglib.niRFSG_init(self._resource_name,VI_True,VI_True,ctypes.byref(viSession))
+        return retVal
 
     def get_all(self):
         '''
@@ -173,6 +179,11 @@ class NI_RFSG(Instrument):
         logging.info(__name__ + ' : get all')
         self.get_status()
         return 0
+    def wait_until_settled(self, max_time = 50):
+        viMax_Wait_Time = ViInt32(max_time)
+        retVal = nfsglib.niRFSG_WaitUntilSettled(self._viSession,viMax_Wait_Time)
+
+        return retVal
 
     def do_set_frequency(self, freq):
         '''
