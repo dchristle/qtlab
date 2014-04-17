@@ -75,7 +75,7 @@ class SR_DG645(Instrument):
         self.add_parameter('reference',
             flags=Instrument.FLAG_GETSET,
             type=types.IntType,
-            channels=('T0','T1','A','B','C','D','E','F','G'),
+            channels=('T0','T1','A','B','C','D','E','F','G','H'),
             format_map = {
                 0: 'T0',
                 1: 'T1',
@@ -105,7 +105,6 @@ class SR_DG645(Instrument):
             flags=Instrument.FLAG_GETSET,
             type=types.IntType,
             channels=('T0', 'AB', 'CD','EF','GH'),
-            minval=0, maxval=1,
             format_map = {
                 0: 'neg',
                 1: 'pos',
@@ -310,7 +309,7 @@ class SR_DG645(Instrument):
         '''
         Write level polarity for given channel
         '''
-        self._visa.write('LPOL %d,%f' % (self._output_num(channel),pol))
+        self._visa.write('LPOL %d,%d' % (self._output_num(channel),pol))
         return
 
     def do_get_polarity(self, channel):
@@ -318,7 +317,7 @@ class SR_DG645(Instrument):
         Read level polarity for given channel
         '''
         ans = self._visa.ask('LPOL?%d' % self._output_num(channel))
-        return float(ans)
+        return int(ans)
 
     def do_set_trig_source(self, source):
         '''
