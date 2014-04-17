@@ -41,6 +41,7 @@ class ThorLabs_ITC4001(Instrument):
             flags=Instrument.FLAG_GETSET,
             units='A',
             minval=0, maxval=0.672,
+            maxstep=0.026, stepdelay=200,
             type=types.FloatType)
         self.add_parameter('temperatureSP',
             flags=Instrument.FLAG_GETSET,
