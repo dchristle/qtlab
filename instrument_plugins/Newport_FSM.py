@@ -151,6 +151,7 @@ class Newport_FSM(Instrument):
         # Set the terminal of the corresponding counter to the desired terminal
         funcname = ('set_' + ctr + '_src')
         getattr(self._ni63, funcname)(term)
+        prev_count_time = self._ni63.get_count_time()
         self._ni63.set_count_time(1.0/rate)
         # Create voltage array by doing the conversion
         x_V_array = self.convert_um_to_V(x_um_array, channel)
@@ -158,7 +159,7 @@ class Newport_FSM(Instrument):
 
         carray = self._ni63.write_and_count(x_V_array,
             self.fsm_dimensions[channel]['ao_channel'],ctr)
-
+        self._ni63.set_count_time(prev_count_time)
         return carray
 
     def AO_smooth(self, x_init, x_final, channel):
