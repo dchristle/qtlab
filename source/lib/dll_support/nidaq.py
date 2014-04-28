@@ -649,3 +649,59 @@ def write_dig_port8(channel, val, timeout=1.0):
         if taskHandle.value != 0:
             nidaq.DAQmxStopTask(taskHandle)
             nidaq.DAQmxClearTask(taskHandle)
+def readarray(devchan, trigchan, samples, freq=10000.0, minv=-10.0, maxv=10.0,
+                timeout=10.0):
+    '''
+    Read values from AI channel, triggered
+
+    Input:
+        devchan (string): device/channel specifier, such as /Dev1/ai0
+        src (string): device terminal to detect edges on, such as PFI0
+        aochan (string): device/ao sampleclock specifier, e.g. /Dev1/ao/SampleClock
+        data (numpy.array): data to write
+        freq (float): the frequency at which to write the AO samples (and count)
+        minv (float): the minimum voltage
+        maxv (float): the maximum voltage
+        timeout (float): the time in seconds to wait for completion
+
+    Output:
+        Number of values written
+    '''
+    # First we create a counter task and then set it to use the analog out
+    # sample clock to trigger when it actually takes samples.
+
+    taskHandleAI = TaskHandle(0)
+    nwritten = int32()
+    nread = int32()
+    cdata = numpy.zeros(samples, dtype=numpy.float64)
+
+    try:
+        # Now start creating the analog out task to write the voltage array
+        CHK(nidaq.DAQmxCreateTask("", ctypes.byref(taskHandleAI)))
+        # Set up the task with an analog out channel on devchan
+        CHK(nidaq.DAQmxCreateAIVoltageChan(taskHandleAI, devchan, None,
+            DAQmx_Val_RSE, float64(minv), float64(maxv), DAQmx_Val_Volts, None))
+        CHK(nidaq.DAQmxCfgSampClkTiming(taskHandleAI,"",float64(freq),DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,uInt64(samples)))
+        CHK(nidaq.DAQmxCfgDigEdgeStartTrig(taskHandleAI,trigchan,DAQmx_Val_Rising))
+    except Exception, e:
+        logging.error('Failed in AI setup phase: %s', str(e))
+    try:
+        CHK(nidaq.DAQmxStartTask(taskHandleAI))
+        #print 'Started task'
+    except Exception, e:
+        logging.error('Failed in AI start task phase: %s', str(e))
+    try:
+        # Send the samples to write
+        CHK(nidaq.DAQmxReadAnalogF64(taskHandleAI, -1, float64(timeout), DAQmx_Val_GroupByChannel, cdata.ctypes.data, uInt32(samples), ctypes.byref(nread), None))
+        #print 'Read %s samples.' % nread.value
+    except Exception, e:
+        logging.error('Failed in AI read phase: %s', str(e))
+
+
+    finally:
+        #print 'Clearing task'
+        if taskHandleAI.value != 0:
+            nidaq.DAQmxStopTask(taskHandleAI)
+            nidaq.DAQmxClearTask(taskHandleAI)
+
+    return cdata

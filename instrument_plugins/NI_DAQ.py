@@ -94,6 +94,7 @@ class NI_DAQ(Instrument):
         self.set_count_time(1)
         self.get_all()
 
+
     def get_all(self):
         ch_in = [_get_channel(ch) for ch in self._get_input_channels()]
         self.get(ch_in)
@@ -171,6 +172,16 @@ class NI_DAQ(Instrument):
         devchan = '%s/%s' % (self._id, channel)
         return nidaq.writearray(devchan, data, freq, minv, maxv,
                 timeout)
+    def readarray(self, samples, trigchan, freq, minv, maxv,
+                timeout, channel):
+        # This routine is a slightly more general version of the set output
+        # routine already written. The purpose here is to allow the user direct
+        # access to the lower nidaq.py module's "write" function that allows
+        # setting of the frequency of the write, among other things.
+        devchan = '%s/%s' % (self._id, channel)
+        array_out = nidaq.readarray(devchan, trigchan, samples, freq, minv, maxv, timeout)
+
+        return array_out
 
     # Dummy
     def do_set_counter_src(self, val, channel):
