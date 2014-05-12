@@ -56,6 +56,8 @@ class Coherent_FieldMasterGS(Instrument):
             type=types.StringType,
             doc='''Offset on or off?''')
 
+        self.add_function('buffer_clear')
+
 
 
 
