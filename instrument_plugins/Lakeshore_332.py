@@ -76,6 +76,18 @@ class Lakeshore_332(Instrument):
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
             channels=(1,2))
+        # Manual output
+        self.add_parameter('mout',
+            flags=Instrument.FLAG_GETSET,
+            type=types.FloatType,
+            channels=(1,2))
+        # Control mode
+        # : 1 = Manual PID, 2 = Zone,
+        #3 = Open Loop, 4 = AutoTune PID, 5 = AutoTune PI, 6 = AutoTune P.
+        self.add_parameter('cmode',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType,
+            channels=(1,2))
 
         self.add_function('local')
         self.add_function('remote')
@@ -154,3 +166,17 @@ class Lakeshore_332(Instrument):
 
     def do_set_setpoint(self, val, channel):
         self._visa.write('SETP %s, %f' % (channel, val))
+
+    def do_get_mout(self, channel):
+        ans = self._visa.ask('MOUT? %s' % channel)
+        return float(ans)
+
+    def do_set_mout(self, val, channel):
+        self._visa.write('MOUT %s,%f' % (channel, val))
+
+    def do_get_cmode(self, channel):
+        ans = self._visa.ask('CMODE? %s' % channel)
+        return float(ans)
+
+    def do_set_cmode(self, val, channel):
+        self._visa.write('CMODE %s,%f' % (channel, val))
