@@ -1,6 +1,6 @@
 # SRS_DG645.py driver for SRS DG645 Digital Delay Generator
+# David Christle <christle@uchicago.edu>, July 2014
 # F. J. Heremans <jhereman@gmail.com>
-# David Christle <christle@uchicago.edu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ class SR_DG645(Instrument):
             flags=Instrument.FLAG_GETSET,
             type=types.FloatType,
             channels=('T0', 'AB', 'CD','EF', 'GH'),
-            minval=0, maxval=5,units = 'V')
+            minval=0.5, maxval=5.0,units = 'V')
 
         self.add_parameter('offset',
             flags=Instrument.FLAG_GETSET,
@@ -136,10 +136,15 @@ class SR_DG645(Instrument):
             type=types.FloatType,
             minval=0, maxval=3.5,units = 'V',
             )
+        self.add_parameter('last_error',
+            flags=Instrument.FLAG_GET,
+            type=types.IntType
+            )
 
         # Add functions to wrapper
         self.add_function('set_z_high')
         self.add_function('set_z_50')
+        self.add_function('clear_errors')
         self.add_function('get_all')
 
         if reset:
@@ -199,6 +204,21 @@ class SR_DG645(Instrument):
         '''
         Set output impedance to 50 Ohm
         '''
+    def clear_errors(self):
+        '''
+        Clear errors from buffer
+        '''
+        noerr = False
+        itera = 0
+        # Number of iterations should be less than 20, since that is the maximum
+        # buffer size.
+        while noerr == False and itera <= 25:
+            ans = self._visa.ask('LERR?')
+            if int(ans) == 0:
+                noerr = True
+            itera = itera + 1
+        return
+
 
     # This function converts a string channel to a number
     def _channel_num(self, channel):
@@ -235,6 +255,14 @@ class SR_DG645(Instrument):
 # --------------------------------------
 #           parameters
 # --------------------------------------
+    def do_get_last_error(self):
+        '''
+        Read last error from error buffer
+        '''
+        ans = self._visa.ask('LERR?')
+        return int(ans)
+
+
     def do_set_delay(self, delay_time, channel):
         '''
         Write delay for given channel
@@ -360,4 +388,3 @@ class SR_DG645(Instrument):
         '''
         ans = self._visa.ask('TLVL?')
         return float(ans)
-
