@@ -1,5 +1,6 @@
 # This file contains user-specific settings for qtlab.
 # It is run as a regular python script.
+import sys, os
 
 BASE = os.path.join(os.getcwd(), '..')
 sys.path.append(BASE)

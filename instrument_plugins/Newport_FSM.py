@@ -36,7 +36,7 @@ class Newport_FSM(Instrument):
 
         self.fsm_dimensions = {
                 'X' : {
-                    'micron_per_volt' : 7.1944,
+                    'micron_per_volt' : 9.5768,
                     'min_v' : -10.,
                     'max_v' : 10,
                     'default' : 0.,
@@ -46,7 +46,7 @@ class Newport_FSM(Instrument):
                     'ao_channel' : 'ao0'
                     },
                 'Y' : {
-                    'micron_per_volt' : 9.5522,
+                    'micron_per_volt' : 7.1759,
                     'min_v' : -10.,
                     'max_v' : 10,
                     'default' : 0.,
