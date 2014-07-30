@@ -281,8 +281,10 @@ class Instruments(SharedGObject):
 
         # Set VISA provider
         visa_driver = kwargs.get('visa', 'pyvisa')
-        import visa
-        visa.set_visa(visa_driver)
+        # modified by David Christle, 2014 -- resolves a name conflict with
+        # an existing pyvisa .py file named visa.py
+        import qtvisa
+        qtvisa.set_visa(visa_driver)
 
         module = _get_driver_module(instype)
         if module is None:
