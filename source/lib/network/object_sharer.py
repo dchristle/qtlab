@@ -16,23 +16,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 import logging
-try:
-    import cPickle as pickle
-except:
-    import pickle
+import pickle
 import socket
+from lib.network import tcpserver
 import copy
 import random
 import inspect
 import time
 import gobject
-import types
 
 PORT = 12002
 BUFSIZE = 8192
-
-class RemoteException(Exception):
-    pass
 
 class ObjectSharer():
     '''
@@ -48,7 +42,6 @@ class ObjectSharer():
         self._clients = []
         self._object_cache = {}
         self._client_cache = {}
-        self.server = None
 
         self._last_hid = 0
         self._last_call_id = 0
@@ -76,7 +69,7 @@ class ObjectSharer():
         '''
         Add a client through connection 'conn'.
         '''
-        info = self.call(conn, 'root', 'get_object_info', 'root',
+        info = self.call(conn, 'root', 'get_object', 'root',
             timeout=self._client_timeout)
         if info is None:
             logging.warning('Unable to get client root object')
@@ -87,18 +80,6 @@ class ObjectSharer():
         logging.info('Added client %r, name %s', client.get_id(), name)
         self._do_event_callbacks('connect', client)
         return client
-
-    def get_client_for_socket(self, conn):
-        for c in self.clients:
-            if c.get_proxy_socket() == conn:
-                return c
-        return None
-
-    def remove_client(self, client):
-        if client in self._clients:
-            del self._clients[self._clients.index(client)]
-
-        self._do_event_callbacks('disconnected', client)
 
     def register_event_callback(self, event, cb):
         '''
@@ -117,6 +98,12 @@ class ObjectSharer():
             return
         for func in self._event_callbacks[event]:
             func(*args)
+
+    def remove_client(self, client):
+        if client in self._clients:
+            del self._clients[self._clients.index(client)]
+
+        self._do_event_callbacks('disconnected', client)
 
     def _client_disconnected(self, conn):
         for client in self._clients:
@@ -168,7 +155,7 @@ class ObjectSharer():
             return '%s:%s' % (client.get_instance_name(), objname)
 
     def _get_object_from(self, client, objname):
-        info = client.get_object_info(objname)
+        info = client.get_object(objname)
         proxy = ObjectProxy(client.get_connection(), info)
         self._object_cache[objname] = proxy
 
@@ -326,15 +313,8 @@ class ObjectSharer():
             if callid not in self._return_cbs:
                 logging.warning('Return received for unknown call %d', callid)
                 return
-
             func = self._return_cbs[callid]
             del self._return_cbs[callid]
-
-            if type(callinfo) == types.StringType and callinfo.startswith('sharedname:'):
-                sn = callinfo[11:]
-                logging.debug('Received shared object reference, finding %s', sn)
-                callinfo = helper.find_object(sn)
-
             func(callinfo)
             return
 
@@ -356,18 +336,11 @@ class ObjectSharer():
         try:
             ret = func(*args, **kwargs)
         except Exception, e:
-            import traceback
-            tb = traceback.format_exc(15)
-            ret = RemoteException('%s\n%s' % (e, tb))
+            ret = e
 
         if info[0] == 'signal':
             # No need to send return
             return
-
-        if isinstance(ret, SharedObject):
-            sn = root.get_instance_name() + ':' + ret.get_shared_name()
-            logging.debug('Returning a shared object reference: %s', sn)
-            ret = 'sharedname:' + sn
 
         self._send_return(conn, info[1], ret)
 
@@ -578,63 +551,20 @@ class SharedObject():
     Server side object that can be shared and emit signals.
     '''
 
-    def __init__(self, name, replace=False, wrapobj=None):
+    def __init__(self, name, replace=False):
         '''
         Create SharedObject, arguments:
         name:       shared name
         replace:    whether to replace object when it already exists
-        wrapobj:    object instance to wrap
         '''
 
         self.__last_hid = 1
         self.__callbacks = {}
         self.__name = name
-        self.__wrapobj = wrapobj
         helper.add_object(self, replace=replace)
 
-    # ObjectSharer.handle_packet uses getattr to get the function object to
-    # call. We override getattr here to be able to make wrapped SharedObjects.
-    def __getattr__(self, attr):
-        if self.__wrapobj is not None:
-            return getattr(self.__wrapobj, attr)
-        raise AttributeError()
-
     def get_shared_name(self):
-        '''Return the shared name of this object.'''
         return self.__name
-
-    def _get_shared_from_object(self, obj):
-        props = []
-        funcs = []
-        for key, val in inspect.getmembers(obj):
-            if key.startswith('_') or key in ObjectProxy.__dict__:
-                continue
-            elif callable(val):
-                if hasattr(val, '_share_options'):
-                    opts = val._share_options
-                else:
-                    opts = None
-                funcs.append((key, opts))
-            else:
-                props.append(key)
-
-        return props, funcs
-
-    # Start with underscore to not share, but gets called from ObjectSharer
-    def _get_shared_props_funcs(self):
-        '''
-        Return a tuple <props>, <funcs> containing a list of the shared
-        properties (attributes) and functions.
-
-        This function is called by RootObject.get_object_info() to obtain
-        information about this SharedObject.
-        '''
-        props, funcs = self._get_shared_from_object(self)
-        if self.__wrapobj is not None:
-            props2, funcs2 = self._get_shared_from_object(self.__wrapobj)
-            props.extend(props2)
-            funcs.extend(funcs2)
-        return props, funcs
 
     def emit(self, signal, *args, **kwargs):
         helper.emit_signal(self.__name, signal, *args, **kwargs)
@@ -651,13 +581,6 @@ class SharedObject():
     def disconnect(self, hid):
         if hid in self.__callbacks:
             del self.__callbacks[hid]
-
-def create_shared_object(name, obj):
-    '''
-    Create a shared object called <name> for an already instantiated object
-    <obj>.
-    '''
-    return SharedObject(name, wrapobj=obj)
 
 class SharedGObject(gobject.GObject, SharedObject):
 
@@ -723,9 +646,6 @@ class _FunctionCall():
 class ObjectProxy():
     '''
     Client side object proxy.
-
-    Based on the info dictionary this object will be populated with functions
-    and properties that are available on the remote SharedObject.
     '''
 
     def __init__(self, conn, info):
@@ -749,14 +669,6 @@ class ObjectProxy():
     def disconnect(self, hid):
         return helper.disconnect(hid)
 
-    def get_proxy_client(self):
-        '''Return the client where this proxy is pointing to'''
-        return helper.get_client_for_socket(self.__conn)
-
-    def get_proxy_socket(self):
-        '''Return the connection this proxy is using'''
-        return self.__conn
-
 def cache_result(f):
     f._share_options = {'cache_result': True}
     return f
@@ -776,20 +688,29 @@ class RootObject(SharedObject):
     def get_instance_name(self):
         return self._instance_name
 
-    def get_object_info(self, objname):
-        '''
-        Return info dictionary describing SharedObject <objname>.
-        '''
-
+    def get_object(self, objname):
         if objname not in self._objects:
             raise Exception('Object not found')
 
         obj = self._objects[objname]
-        props, funcs = obj._get_shared_props_funcs()
+        props = []
+        funcs = []
+        for key, val in inspect.getmembers(obj):
+            if key.startswith('_') or key in ObjectProxy.__dict__:
+                continue
+            elif callable(val):
+                if hasattr(val, '_share_options'):
+                    opts = val._share_options
+                else:
+                    opts = None
+                funcs.append((key, opts))
+            else:
+                props.append(key)
+
         info = {
             'name': objname,
             'properties': props,
-            'functions': funcs,
+            'functions': funcs
         }
         return info
 
@@ -829,6 +750,52 @@ class PythonInterpreter(SharedObject):
         except:
             ip = IPython.ipapi.get()
         ip.IP.code_queue.put((c, cev, rev))
+
+class _DummyHandler(tcpserver.GlibTCPHandler):
+
+    def __init__(self, sock, client_address, server):
+        tcpserver.GlibTCPHandler.__init__(self, sock, client_address, server,
+                packet_len=True)
+        helper.add_client(self.socket, self)
+
+    def handle(self, data):
+        if len(data) > 0:
+            data = helper.handle_data(self.socket, data)
+        return True
+
+_flush_queue_hid = None
+
+def setup_glib_flush_queue():
+    global _flush_queue_hid
+    if _flush_queue_hid is not None:
+        return
+    _flush_queue_hid = gobject.timeout_add(2000, helper._process_send_queue)
+
+def start_glibtcp_server(port=PORT):
+    try:
+        server = tcpserver.GlibTCPServer(('', port), _DummyHandler, '127.0.0.1')
+        SharedObject.server = server
+        setup_glib_flush_queue()
+        return True
+    except Exception, e:
+        logging.warning('Failed to start sharing server: %s', str(e))
+        return False
+
+def start_glibtcp_client(host, port=PORT, nretry=1):
+    while nretry > 0:
+        try:
+            print 'Connecting to %s:%s' % (host, port)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((host, port))
+            handler = _DummyHandler(sock, 'client', 'server')
+            setup_glib_flush_queue()
+            return True
+        except Exception, e:
+            logging.warning('Failed to start sharing client: %s', str(e))
+            if nretry > 0:
+                logging.info('Retrying in 2 seconds...')
+                time.sleep(2)
+    return False
 
 helper = ObjectSharer()
 root = RootObject('root')
