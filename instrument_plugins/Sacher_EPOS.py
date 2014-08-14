@@ -63,6 +63,7 @@ class Sacher_EPOS(Instrument):
         #    logging.error('Error loading Sacher EPOS motor. In use?')
 
     def __del__(self):
+        # execute disconnect
         return
     def get_bit(self, byteval,idx):
         return ((byteval&(1<< idx ))!=0)
@@ -119,6 +120,28 @@ class Sacher_EPOS(Instrument):
             self._is_open = True
             self._keyhandle = ret
         return
+    def set_wavelength(self, wavelength):
+        # Step 1: Get the motor offset
+        eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
+        eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
+        # These are hardcoded values I got from the LabVIEW program -- I don't think
+        # any documentation exists on particular object indices
+        StoredPositionObject = ctypes.wintypes.WORD(8321)
+        StoredPositionObjectSubindex = ctypes.c_uint8(0)
+        StoredPositionNbBytesToRead = ctypes.wintypes.DWORD(4)
+        ObjectData = ctypes.c_void_p()
+        ObjectDataArray = (ctypes.c_uint32*1)()
+        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_uint32))
+        StoredPositionNbBytesRead = ctypes.pointer(ctypes.wintypes.DWORD(0))
+        ret = eposlib.VCS_GetObject(self._keyhandle, nodeID, StoredPositionObject, StoredPositionObjectSubindex, ObjectData, StoredPositionNbBytesToRead, StoredPositionNbBytesRead, ctypes.byref(buf))
+
+        # Cast the object data to uint32
+        CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
+        if ret == 0:
+            logging.error(__name__ + ' Could not read stored position from Sacher EPOS motor')
+        self._offset = CastedObjectData[0]
+
+        return
 
     def close(self):
         self._is_open = False
@@ -129,14 +152,7 @@ class Sacher_EPOS(Instrument):
         return self._is_open
 
     def initialize(self):
-        '''
-        Initialize picoharp.
-        Modes:
-            0: histogramming
-            2: T2
-            3: T3
-        '''
-        print 'trying protocol stack'
+
         nodeID = ctypes.wintypes.WORD(0)
         buf = ctypes.wintypes.DWORD(0)
         BaudRate = DWORD(38400)
@@ -214,15 +230,9 @@ class Sacher_EPOS(Instrument):
         pProfileVelocity = ctypes.pointer(ctypes.wintypes.DWORD())
         pProfileAcceleration = ctypes.pointer(ctypes.wintypes.DWORD())
         pProfileDeceleration = ctypes.pointer(ctypes.wintypes.DWORD())
-        print 'about to call getpost'
+
         ret = eposlib.VCS_GetPositionProfile(self._keyhandle, nodeID, pProfileVelocity, pProfileAcceleration, pProfileDeceleration,ctypes.byref(buf))
-        print 'getposprofile done'
-        print 'operation mode buf %s' % (buf.value)
-        print 'pvel is %s' % (pProfileVelocity.contents.value)
-        print 'acc is %s' % (pProfileAcceleration.contents.value)
-        print 'dec is %s' % (pProfileDeceleration.contents.value)
-        print 'ret is %s' % (ret)
-        print 'type is %s' % type(pProfileVelocity.contents.value)
+
         if (long(pProfileVelocity.contents.value) > long(11400) or long(pProfileAcceleration.contents.value) > long(60000) or long(pProfileDeceleration.contents.value) > long(60000)):
             eposlib.VCS_GetPositionProfile.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD)]
             eposlib.VCS_GetPositionProfile.restype = ctypes.wintypes.BOOL
@@ -259,8 +269,7 @@ class Sacher_EPOS(Instrument):
         eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
 
-        # These are hardcoded values I got from the LabVIEW program -- I don't think
-        # any documentation exists on particular object indices
+        # More hardcoded values
         StoredPositionObject = ctypes.wintypes.WORD(8204)
         StoredPositionObjectSubindex = ctypes.c_uint8(1)
         StoredPositionNbBytesToRead = ctypes.wintypes.DWORD(4)
