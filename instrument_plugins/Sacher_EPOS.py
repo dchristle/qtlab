@@ -1,5 +1,5 @@
 # sacher_epos.py, python wrapper for sacher epos motor
-# David Christle <christle@uchicago.edu>, 2014
+# David Christle <christle@uchicago.edu>, August 2014
 #
 
 
@@ -10,6 +10,7 @@ from instrument import Instrument
 from ctypes.wintypes import DWORD
 from ctypes.wintypes import WORD
 import ctypes.wintypes
+import time
 
 #eposlib = ctypes.windll.eposcmd
 eposlib = ctypes.windll.LoadLibrary('C:\\measuring\\measurement\\lib\\dll_support\\EPOS\\EposCmd2.dll')
@@ -55,6 +56,7 @@ class Sacher_EPOS(Instrument):
         Instrument.__init__(self, name, tags=['physical'])
         self._port_name = str(port_name)
         self._is_open = False
+        self._HPM = True
 
         #try:
         self.open()
@@ -120,10 +122,12 @@ class Sacher_EPOS(Instrument):
             self._is_open = True
             self._keyhandle = ret
         return
-    def set_wavelength(self, wavelength):
-        # Step 1: Get the motor offset
+    def get_offset(self):
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
         eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
+        print 'setting objs'
         # These are hardcoded values I got from the LabVIEW program -- I don't think
         # any documentation exists on particular object indices
         StoredPositionObject = ctypes.wintypes.WORD(8321)
@@ -139,7 +143,150 @@ class Sacher_EPOS(Instrument):
         CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
         if ret == 0:
             logging.error(__name__ + ' Could not read stored position from Sacher EPOS motor')
+        print 'data is %s' % (CastedObjectData[0])
+        return CastedObjectData[0]
+    def set_new_offset(self, new_offset):
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
+        eposlib.VCS_SetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
+        eposlib.VCS_SetObject.restype = ctypes.wintypes.BOOL
+        print 'setting new offset'
+
+        StoredPositionObject = ctypes.wintypes.WORD(8321)
+        StoredPositionObjectSubindex = ctypes.c_uint8(0)
+        StoredPositionNbBytesToWrite = ctypes.wintypes.DWORD(4)
+
+
+        ObjectDataArray = (ctypes.c_uint32*1)(new_offset)
+        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_uint32))
+        StoredPositionNbBytesWritten = ctypes.pointer(ctypes.wintypes.DWORD(0))
+        ret = eposlib.VCS_SetObject(self._keyhandle, nodeID, StoredPositionObject, StoredPositionObjectSubindex, ObjectData, StoredPositionNbBytesToWrite, StoredPositionNbBytesWritten, ctypes.byref(buf))
+
+
+        if ret == 0:
+            logging.error(__name__ + ' Could not write stored position from Sacher EPOS motor')
+        return
+
+    def get_motor_position(self):
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
+        pPosition = ctypes.pointer(ctypes.c_long())
+        eposlib.VCS_GetPositionIs.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.POINTER(ctypes.c_long), ctypes.POINTER(ctypes.wintypes.DWORD)]
+        eposlib.VCS_GetPositionIs.restype = ctypes.wintypes.BOOL
+        ret = eposlib.VCS_GetPositionIs(self._keyhandle, nodeID, pPosition, ctypes.byref(buf))
+        print 'get motor position ret %s' % ret
+        print 'get motor position buf %s' % buf.value
+        print 'get motor position value %s' % pPosition.contents.value
+        return pPosition.contents.value
+
+    def set_target_position(self, target, absolute, immediately):
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
+        # First, set enabled state
+        ret = eposlib.VCS_SetEnableState(self._keyhandle,nodeID,ctypes.byref(buf))
+        print 'Enable state ret %s buf %s' % (ret, buf.value)
+        pTarget = ctypes.c_long(target)
+        pAbsolute = ctypes.wintypes.BOOL(absolute)
+        pImmediately = ctypes.wintypes.BOOL(immediately)
+        eposlib.VCS_MoveToPosition.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.c_long, ctypes.wintypes.BOOL, ctypes.wintypes.BOOL, ctypes.POINTER(ctypes.wintypes.DWORD)]
+        eposlib.VCS_MoveToPosition.restype = ctypes.wintypes.BOOL
+        print 'About to set motor position'
+        ret = eposlib.VCS_MoveToPosition(self._keyhandle, nodeID, pTarget, pAbsolute, pImmediately, ctypes.byref(buf))
+        print 'set motor position ret %s' % ret
+        print 'set motor position buf %s' % buf.value
+        # Now get movement state
+        nchecks = 0
+        while nchecks < 15:
+            pMovementState = ctypes.pointer(ctypes.wintypes.BOOL())
+            eposlib.VCS_GetMovementState.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.POINTER(ctypes.wintypes.BOOL), ctypes.POINTER(ctypes.wintypes.DWORD)]
+            eposlib.VCS_GetMovementState.restype = ctypes.wintypes.BOOL
+            print 'Getting movement state'
+            ret = eposlib.VCS_GetMovementState(self._keyhandle, nodeID, pMovementState, ctypes.byref(buf))
+            print 'set motor position ret %s' % ret
+            print 'set motor position buf %s' % buf.value
+            print 'Movement state is %s' % pMovementState.contents.value
+            if pMovementState.contents.value == 1:
+                break
+            nchecks = nchecks + 1
+            time.sleep(5.0)
+        # Now set disabled state
+        ret = eposlib.VCS_SetDisableState(self._keyhandle,nodeID,ctypes.byref(buf))
+        print 'Disable state ret %s buf %s' % (ret, buf.value)
+        return ret
+    def get_wavelength(self):
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
+        eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
+        eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
+        print 'setting objs'
+        # These are hardcoded values I got from the LabVIEW program -- I don't think
+        # any documentation exists on particular object indices
+        StoredPositionObject = ctypes.wintypes.WORD(8321)
+        StoredPositionObjectSubindex = ctypes.c_uint8(0)
+        StoredPositionNbBytesToRead = ctypes.wintypes.DWORD(4)
+        ObjectData = ctypes.c_void_p()
+        ObjectDataArray = (ctypes.c_uint32*1)()
+        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_uint32))
+        StoredPositionNbBytesRead = ctypes.pointer(ctypes.wintypes.DWORD(0))
+        ret = eposlib.VCS_GetObject(self._keyhandle, nodeID, StoredPositionObject, StoredPositionObjectSubindex, ObjectData, StoredPositionNbBytesToRead, StoredPositionNbBytesRead, ctypes.byref(buf))
+
+        # Cast the object data to uint32
+        CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
+        if ret == 0:
+            logging.error(__name__ + ' Could not read stored position from Sacher EPOS motor')
+        print 'data is %s' % (CastedObjectData[0])
         self._offset = CastedObjectData[0]
+        self._currentwl = self._doubleA*(self._offset)**2.0 + self._doubleB*self._offset + self._doubleC
+        return self._currentwl
+
+    def set_wavelength(self, wavelength):
+        print 'Coefficients are %s %s %s' % (self._doubleA, self._doubleB, self._doubleC)
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
+        # Step 1: Get the actual motor position
+        print 'Getting motor position'
+        current_motor_pos = self.get_motor_position()
+        # Step 2: Get the motor offset
+        self._offset = self.get_offset()
+        print 'Motor offset is %s' % self._offset
+        # Step 3: Convert the desired wavelength into a position
+        # Check sign of position-to-wavelength
+        pos0 = self._doubleA*(0.0)**2.0 + self._doubleB*0.0 + self._doubleC
+        pos5000 = self._doubleA*(5000.0)**2.0 + self._doubleB*5000.0 + self._doubleC
+
+        #    logging.error(__name__ + ' Sacher wavelength calibration polynomials indicated a wrong wavelength direction')
+        # If that's OK, use the quadratic formula to calculate the roots
+        b2a = -1.0*self._doubleB/(2.0*self._doubleA)
+        sqrtarg = self._doubleB**2.0/(4.0*self._doubleA**2.0) - (self._doubleC - wavelength)/self._doubleA
+        if sqrtarg < 0.0:
+            logging.error(__name__ + ' Negative value under square root sign -- something is wrong')
+        if pos0 > pos5000:
+            # Take the + square root solution
+            x = b2a + np.sqrt(sqrtarg)
+        elif pos0 < pos5000:
+            x = b2a - np.sqrt(sqrtarg)
+        #print 'Position is %s' % x
+        wavelength_to_pos = int(round(x))
+        # Step 4: Calculate difference between the output position and the stored offset
+        print 'Step 4...'
+        diff_wavelength_offset = wavelength_to_pos - int(self._offset)
+        print 'Diff wavelength offset %s' % diff_wavelength_offset
+        # Step 5: If HPM is activated and the wavelength position is lower, overshoot
+        # the movement by 10,000 steps
+        print 'Step 5...'
+        if self._HPM and diff_wavelength_offset < 0:
+            print 'Overshooting by 10000'
+            self.set_target_position(diff_wavelength_offset - 10000, False, True)
+        # Step 6: Set the real target position
+        print 'Step 6... diff wavelength'
+        self.set_target_position(diff_wavelength_offset, False, True)
+        # Step 7: Get the actual motor position
+        new_motor_pos = self.get_motor_position()
+        print 'New motor position is %s' % new_motor_pos
+        print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
+        self.set_new_offset(new_motor_pos-current_motor_pos+self._offset)
+
+
 
         return
 
@@ -183,8 +330,8 @@ class Sacher_EPOS(Instrument):
 
         if int(plsenabled.value) != 0:
             logging.warning(__name__ + ' EPOS motor enabled, disabling before proceeding.')
-            ret = eposlib.VCS_SetDisabledState(self._keyhandle,nodeID,ctypes.byref(buf))
-            if int(ret.value) != 0:
+            ret = eposlib.VCS_SetDisableState(self._keyhandle,nodeID,ctypes.byref(buf))
+            if int(ret) != 0:
                 logging.warning(__name__ + ' EPOS motor successfully disabled, proceeding')
             else:
                 logging.error(__name__ + ' EPOS motor was not successfully disabled!')
@@ -334,7 +481,7 @@ class Sacher_EPOS(Instrument):
         CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
 
         self._coefD = CastedObjectData[0]
-        print 'coefficients are %s %s %s %s' % (self._coefA, self._coefB, self._coefC, self._coefD)
+        #print 'coefficients are %s %s %s %s' % (self._coefA, self._coefB, self._coefC, self._coefD)
         self._doubleA = self._u32todouble(self._coefA)
         self._doubleB = self._u32todouble(self._coefB)
         self._doubleC = self._u32todouble(self._coefC)
