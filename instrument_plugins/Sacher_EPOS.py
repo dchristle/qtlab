@@ -66,6 +66,7 @@ class Sacher_EPOS(Instrument):
 
     def __del__(self):
         # execute disconnect
+        self.close()
         return
     def get_bit(self, byteval,idx):
         return ((byteval&(1<< idx ))!=0)
@@ -122,12 +123,30 @@ class Sacher_EPOS(Instrument):
             self._is_open = True
             self._keyhandle = ret
         return
+    def close(self):
+        print 'closing'
+
+        eposlib.VCS_CloseDevice.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(DWORD)]
+        eposlib.VCS_CloseDevice.restype = ctypes.wintypes.BOOL
+        buf = ctypes.pointer(DWORD(0))
+        ret = ctypes.wintypes.BOOL()
+
+
+        ret = eposlib.VCS_CloseDevice(self._keyhandle, buf)
+
+
+        print 'close device ret %s' % buf
+
+        if int(buf.contents.value) >= 0:
+            self._is_open = False
+        else:
+            logging.error(__name__ + ' did not close Sacher EPOS motor correctly.')
+        return
     def get_offset(self):
         nodeID = ctypes.wintypes.WORD(0)
         buf = ctypes.wintypes.DWORD(0)
         eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
-        print 'setting objs'
         # These are hardcoded values I got from the LabVIEW program -- I don't think
         # any documentation exists on particular object indices
         StoredPositionObject = ctypes.wintypes.WORD(8321)
@@ -135,16 +154,24 @@ class Sacher_EPOS(Instrument):
         StoredPositionNbBytesToRead = ctypes.wintypes.DWORD(4)
         ObjectData = ctypes.c_void_p()
         ObjectDataArray = (ctypes.c_uint32*1)()
-        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_uint32))
+        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_int32))
         StoredPositionNbBytesRead = ctypes.pointer(ctypes.wintypes.DWORD(0))
         ret = eposlib.VCS_GetObject(self._keyhandle, nodeID, StoredPositionObject, StoredPositionObjectSubindex, ObjectData, StoredPositionNbBytesToRead, StoredPositionNbBytesRead, ctypes.byref(buf))
 
         # Cast the object data to uint32
-        CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
+        CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_int32))
         if ret == 0:
             logging.error(__name__ + ' Could not read stored position from Sacher EPOS motor')
-        print 'data is %s' % (CastedObjectData[0])
         return CastedObjectData[0]
+    def fine_tuning_steps(self, steps):
+        current_motor_pos = self.get_motor_position()
+        self._offset = self.get_offset()
+        self.set_target_position(steps, False, True)
+        new_motor_pos = self.get_motor_position()
+        print 'New motor position is %s' % new_motor_pos
+        print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
+        self.set_new_offset(new_motor_pos-current_motor_pos+self._offset)
+
     def set_new_offset(self, new_offset):
         nodeID = ctypes.wintypes.WORD(0)
         buf = ctypes.wintypes.DWORD(0)
@@ -194,9 +221,13 @@ class Sacher_EPOS(Instrument):
         ret = eposlib.VCS_MoveToPosition(self._keyhandle, nodeID, pTarget, pAbsolute, pImmediately, ctypes.byref(buf))
         print 'set motor position ret %s' % ret
         print 'set motor position buf %s' % buf.value
-        # Now get movement state
+
+        steps_per_second = 14494.0 # hardcoded, estimated roughly, unused now
+
         nchecks = 0
         while nchecks < 15:
+            # get the movement state. a movement state of 1 indicates the motor
+            # is done moving
             pMovementState = ctypes.pointer(ctypes.wintypes.BOOL())
             eposlib.VCS_GetMovementState.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.POINTER(ctypes.wintypes.BOOL), ctypes.POINTER(ctypes.wintypes.DWORD)]
             eposlib.VCS_GetMovementState.restype = ctypes.wintypes.BOOL
@@ -208,34 +239,14 @@ class Sacher_EPOS(Instrument):
             if pMovementState.contents.value == 1:
                 break
             nchecks = nchecks + 1
-            time.sleep(5.0)
+            time.sleep(6.0)
         # Now set disabled state
         ret = eposlib.VCS_SetDisableState(self._keyhandle,nodeID,ctypes.byref(buf))
         print 'Disable state ret %s buf %s' % (ret, buf.value)
         return ret
     def get_wavelength(self):
-        nodeID = ctypes.wintypes.WORD(0)
-        buf = ctypes.wintypes.DWORD(0)
-        eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
-        eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
-        print 'setting objs'
-        # These are hardcoded values I got from the LabVIEW program -- I don't think
-        # any documentation exists on particular object indices
-        StoredPositionObject = ctypes.wintypes.WORD(8321)
-        StoredPositionObjectSubindex = ctypes.c_uint8(0)
-        StoredPositionNbBytesToRead = ctypes.wintypes.DWORD(4)
-        ObjectData = ctypes.c_void_p()
-        ObjectDataArray = (ctypes.c_uint32*1)()
-        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_uint32))
-        StoredPositionNbBytesRead = ctypes.pointer(ctypes.wintypes.DWORD(0))
-        ret = eposlib.VCS_GetObject(self._keyhandle, nodeID, StoredPositionObject, StoredPositionObjectSubindex, ObjectData, StoredPositionNbBytesToRead, StoredPositionNbBytesRead, ctypes.byref(buf))
 
-        # Cast the object data to uint32
-        CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
-        if ret == 0:
-            logging.error(__name__ + ' Could not read stored position from Sacher EPOS motor')
-        print 'data is %s' % (CastedObjectData[0])
-        self._offset = CastedObjectData[0]
+        self._offset = self.get_offset()
         self._currentwl = self._doubleA*(self._offset)**2.0 + self._doubleB*self._offset + self._doubleC
         return self._currentwl
 
@@ -277,23 +288,22 @@ class Sacher_EPOS(Instrument):
         if self._HPM and diff_wavelength_offset < 0:
             print 'Overshooting by 10000'
             self.set_target_position(diff_wavelength_offset - 10000, False, True)
-        # Step 6: Set the real target position
-        print 'Step 6... diff wavelength'
-        self.set_target_position(diff_wavelength_offset, False, True)
+            # Step 6: Set the real target position
+            print 'Step 6a... diff wavelength'
+            self.set_target_position(10000, False, True)
+        else:
+            print 'Step 6b... diff wavelength'
+            self.set_target_position(diff_wavelength_offset, False, True)
         # Step 7: Get the actual motor position
         new_motor_pos = self.get_motor_position()
         print 'New motor position is %s' % new_motor_pos
         print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
         self.set_new_offset(new_motor_pos-current_motor_pos+self._offset)
 
-
+        # Step 8, get and print current wavelength
+        print 'Current wavelength is %.3f' % self.get_wavelength()
 
         return
-
-    def close(self):
-        self._is_open = False
-        #ret = phlib.PH_CloseDevice(self._devid)
-        return True
 
     def is_open(self):
         return self._is_open
@@ -308,7 +318,7 @@ class Sacher_EPOS(Instrument):
         print 'set protocol buf %s ret %s' % (buf, ret)
         if ret == 0:
             errbuf = ctypes.create_string_buffer(64)
-            eposlib.VCS_GetErrorInfo(buf, errbuf, WORD(64))
+            #eposlib.VCS_GetErrorInfo(buf, errbuf, WORD(64))
             raise ValueError(errbuf.value)
 
 
@@ -339,8 +349,7 @@ class Sacher_EPOS(Instrument):
         Counts = WORD(512) # incremental encoder counts in pulses per turn
         PositionSensorType = WORD(4)
         ret = eposlib.VCS_SetEncoderParameter(self._keyhandle,nodeID,Counts,PositionSensorType,ctypes.byref(buf))
-        print 'encoder parameter set buf %s, ret %s' % (buf, ret)
-        print 'type is %s' % type(ret)
+
 ##        if ret == int(0):
 ##            print 'errr'
 ##            errbuf = ctypes.create_string_buffer(64)
@@ -359,7 +368,7 @@ class Sacher_EPOS(Instrument):
         # doesn't check it.
         # Also, it appears that in the 2005 version of this DLL, the function
         # VCS_GetErrorInfo doesn't exist!
-        print 'getting operation'
+
         # Get operation mode, check if it's 1
         buf = ctypes.wintypes.DWORD(0)
         pMode = ctypes.pointer(ctypes.c_int8())
@@ -388,29 +397,11 @@ class Sacher_EPOS(Instrument):
             pProfileDeceleration = ctypes.wintypes.DWORD(429)
             logging.warning(__name__ + ' GetPositionProfile out of bounds, resetting...')
             ret = eposlib.VCS_SetPositionProfile(self._keyhandle, nodeID, pProfileVelocity, pProfileAcceleration, pProfileDeceleration,ctypes.byref(buf))
-        print 'setting args'
+
         # Now get the motor position (stored position offset)
         # from the device's "homposition" object
-        eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
-        eposlib.VCS_GetObject.restype = ctypes.wintypes.BOOL
-        print 'setting objs'
-        # These are hardcoded values I got from the LabVIEW program -- I don't think
-        # any documentation exists on particular object indices
-        StoredPositionObject = ctypes.wintypes.WORD(8321)
-        StoredPositionObjectSubindex = ctypes.c_uint8(0)
-        StoredPositionNbBytesToRead = ctypes.wintypes.DWORD(4)
-        ObjectData = ctypes.c_void_p()
-        ObjectDataArray = (ctypes.c_uint32*1)()
-        ObjectData = ctypes.cast(ObjectDataArray, ctypes.POINTER(ctypes.c_uint32))
-        StoredPositionNbBytesRead = ctypes.pointer(ctypes.wintypes.DWORD(0))
-        ret = eposlib.VCS_GetObject(self._keyhandle, nodeID, StoredPositionObject, StoredPositionObjectSubindex, ObjectData, StoredPositionNbBytesToRead, StoredPositionNbBytesRead, ctypes.byref(buf))
 
-        # Cast the object data to uint32
-        CastedObjectData = ctypes.cast(ObjectData, ctypes.POINTER(ctypes.c_uint32))
-        if ret == 0:
-            logging.error(__name__ + ' Could not read stored position from Sacher EPOS motor')
-        print 'data is %s' % (CastedObjectData[0])
-        self._offset = CastedObjectData[0]
+        self._offset = self.get_offset()
 
         # Now read the stored 'calculation parameters'
         eposlib.VCS_GetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
