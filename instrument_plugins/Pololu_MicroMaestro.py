@@ -17,7 +17,7 @@ class Pololu_MicroMaestro(Instrument):
         Instrument.__init__(self, name, tags=['physical'])
 
         self._address = address
-        self._channels = ('0', '1', '2', '3', '4', '5')
+        self._channels = (0, 1, 2, 3, 4, 5)
 
 
         self.add_parameter('target',
@@ -68,7 +68,7 @@ class Pololu_MicroMaestro(Instrument):
         self._visa = pyvisa.visa.SerialInstrument(self._address,
                 baud_rate=19200, data_bits=8, stop_bits=1,
                 parity=pyvisa.visa.no_parity,term_chars=pyvisa.visa.CR+pyvisa.visa.LF,
-                send_end=False,timeout=2)
+                timeout=2)
 
 
     # Close serial connection
@@ -139,8 +139,9 @@ class Pololu_MicroMaestro(Instrument):
     def do_get_position(self, channel):
         logging.debug(__name__ + ' getting position')
 
-        thestring = "\xAA\x0C\x10" + chr(int(channel))
+        thestring = chr(0xaa) + chr(0xc) + chr(0x10) + chr(int(channel))
+        print 'send %r' % thestring
         self._visa.write(thestring)
         time.sleep(0.1)
-        return self._visa.read_raw()
+        return self._visa.read()
 
