@@ -4,6 +4,7 @@ import types
 import logging
 import re
 import math
+import pyvisa
 
 class NewportAgilisUC2(Instrument):
 
@@ -13,7 +14,7 @@ class NewportAgilisUC2(Instrument):
         self._address = address
         self._visa = visa.instrument(self._address,
                         baud_rate=921600, data_bits=8, stop_bits=1,
-                        parity=visa.no_parity, term_chars='\r')
+                        parity=pyvisa.visa.no_parity, term_chars='\r')
         self.EnterRemoteMode()
 
     def SetChannel(self,channel):
@@ -21,7 +22,7 @@ class NewportAgilisUC2(Instrument):
 
     def EnterRemoteMode(self):
         self._visa.write('MR')
-        
+
     def ExitRemoteMode(self):
         self._visa.write('ML')
 
@@ -55,5 +56,5 @@ class NewportAgilisUC2(Instrument):
     def Reset(self):
         self._visa.write('RS')
 
-       
+
 

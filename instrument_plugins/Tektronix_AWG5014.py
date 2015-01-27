@@ -65,6 +65,8 @@ class Tektronix_AWG5014(Instrument):
 
         self._address = address
         self._visainstrument = visa.instrument(self._address)
+        self._visainstrument.timeout = 10.0
+        self._visainstrument.delay = 0.1
         self._values = {}
         self._values['files'] = {}
         self._clock = clock
@@ -915,7 +917,9 @@ class Tektronix_AWG5014(Instrument):
             None
         '''
         logging.debug(__name__ + ' : Get status of channel %s' %channel)
+        print 'getting output %s' % channel
         outp = self._visainstrument.ask('OUTP%s?' %channel)
+        print 'got output %s' % outp
         if (outp=='0'):
             return 'off'
         elif (outp=='1'):
@@ -937,6 +941,7 @@ class Tektronix_AWG5014(Instrument):
         '''
         logging.debug(__name__ + ' : Set status of channel %s to %s'
             %(channel, status))
+        print 'Setting status %s %s' % (channel, status)
         if (status.upper()=='ON'):
             self._visainstrument.write('OUTP%s ON' %channel)
         elif (status.upper()=='OFF'):
@@ -996,7 +1001,7 @@ class Tektronix_AWG5014(Instrument):
 
         mes = s1 + s2 + s3 + s4 + s5 + s6
 
-        self._visainstrument.write(mes)
+        self._visainstrument.write(bytes(mes))
 
     def resend_waveform(self, channel, w=[], m1=[], m2=[], clock=[]):
         '''

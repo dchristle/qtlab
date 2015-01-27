@@ -52,9 +52,9 @@ PHR800LVMAX = 2400
 
 class Sacher_EPOS(Instrument):
 
-    def __init__(self, name, port_name, reset=False):
+    def __init__(self, name, address, reset=False):
         Instrument.__init__(self, name, tags=['physical'])
-        self._port_name = str(port_name)
+        self._port_name = str(address)
         self._is_open = False
         self._HPM = True
 
@@ -218,6 +218,7 @@ class Sacher_EPOS(Instrument):
         eposlib.VCS_MoveToPosition.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.c_long, ctypes.wintypes.BOOL, ctypes.wintypes.BOOL, ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_MoveToPosition.restype = ctypes.wintypes.BOOL
         print 'About to set motor position'
+        print 'Current motor position is %d' % (self.get_motor_position())
         ret = eposlib.VCS_MoveToPosition(self._keyhandle, nodeID, pTarget, pAbsolute, pImmediately, ctypes.byref(buf))
         print 'set motor position ret %s' % ret
         print 'set motor position buf %s' % buf.value
@@ -239,10 +240,12 @@ class Sacher_EPOS(Instrument):
             if pMovementState.contents.value == 1:
                 break
             nchecks = nchecks + 1
+            print 'Current motor position is %d' % (self.get_motor_position())
             time.sleep(6.0)
         # Now set disabled state
         ret = eposlib.VCS_SetDisableState(self._keyhandle,nodeID,ctypes.byref(buf))
         print 'Disable state ret %s buf %s' % (ret, buf.value)
+        print 'Final motor position is %d' % (self.get_motor_position())
         return ret
     def get_wavelength(self):
 
@@ -307,6 +310,15 @@ class Sacher_EPOS(Instrument):
 
     def is_open(self):
         return self._is_open
+    def clear_fault(self):
+        nodeID = ctypes.wintypes.WORD(0)
+        buf = ctypes.wintypes.DWORD(0)
+        ret = eposlib.VCS_ClearFault(self._keyhandle,nodeID,ctypes.byref(buf))
+        print 'clear fault buf %s, ret %s' % (buf, ret)
+        if ret == 0:
+            errbuf = ctypes.create_string_buffer(64)
+            eposlib.VCS_GetErrorInfo(buf, errbuf, WORD(64))
+            raise ValueError(errbuf.value)
 
     def initialize(self):
 
@@ -369,7 +381,7 @@ class Sacher_EPOS(Instrument):
         # Also, it appears that in the 2005 version of this DLL, the function
         # VCS_GetErrorInfo doesn't exist!
 
-        # Get operation mode, check if it's 1
+        # Get operation mode, check if it's 1 -- this is "profile position mode"
         buf = ctypes.wintypes.DWORD(0)
         pMode = ctypes.pointer(ctypes.c_int8())
         eposlib.VCS_GetOperationMode.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.POINTER(ctypes.c_int8), ctypes.POINTER(ctypes.wintypes.DWORD)]

@@ -71,6 +71,7 @@ class Newport_FSM(Instrument):
 
         # Instrument functions
         self.add_function('zero')
+        self.add_function('move')
 
 
 
@@ -85,8 +86,11 @@ class Newport_FSM(Instrument):
     def stop(self):
         print 'Stopping'
 
-    def step(self, chan, nsteps):
-        print 'Stepping channel %d by %d' % (chan, nsteps)
+    def move(self, Xcoord, Ycoord):
+        self.set_abs_positionX(Xcoord)
+        self.set_abs_positionY(Ycoord)
+        print 'FSM set to X: %.3f / Y: %.3f' % (Xcoord,Ycoord)
+        return
 
     def convert_um_to_V(self, x_um, channel):
         # Just do the micron-to-volt conversion using the hardcoded constants

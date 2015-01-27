@@ -129,6 +129,7 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         self.add_function('reset')
         self.add_function('quick_scan')
         self.add_function('write_raw')
+        self.add_function('buffer_clear')
 
 
         #last things
@@ -145,6 +146,10 @@ class NewportAgilisUC2_v2_lt1(Instrument):
 
     def remote(self):
         self.set_mode('R')
+    def buffer_clear(self): # Got this from Zaber code
+        navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
+        if navail > 0:
+            reply = pyvisa.vpp43.read(self._visa.vi, navail)
 
     #define the get and set functions
     def do_get_step_deg_cfg(self):
@@ -238,17 +243,19 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         This command functions properly only with devices that feature a
         limit switch like models AG-LS25, AG-M050L and AG-M100L.
         """
-        #ans = self._visa.ask('%dPA?'%channel)
-        #return ans
+        self.buffer_clear()
+        ans = self._visa.ask('%dPA?'%channel)
+        return ans
         pass
 
-    def do_set_absolute_position_ch(self, channel, target_position): #DON'T USE WITH PR100
+    def do_set_absolute_position_ch(self, target_position, channel): #DON'T USE WITH PR100
         """
         This command functions properly only with devices that feature a
         limit switch like models AG-LS25, AG-M050L and AG-M100L.
         The execution of the command can last up to 2 minutes.
         """
-        #self._visa.write('%dPA%d'%(channel, target_position))
+        self.buffer_clear()
+        self._visa.write('%dPA%d'%(channel, target_position))
         pass
 
     def do_get_limit_status(self): #OK!
@@ -268,7 +275,7 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         return status_dict[rawans]
 
     def do_get_relative_position_ch(self,channel): #NOTE: don't understand why error
-
+        self.buffer_clear()
         ans = self._visa.ask_for_values('%dPR?'%channel)
         return ans
 
@@ -278,6 +285,7 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         by the SU command (default 16).
         noof_steps: Signed integer, between -2,147,483,648 and 2,147,483,647
         """
+        self.buffer_clear()
         self._visa.write('%dPR%d'%(channel,noof_steps))
 
         if verbose:
@@ -299,6 +307,7 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         amplitude in the backward direction.
         direction = '+' or '-' for positive or negative direction
         """
+        self.buffer_clear()
         [ch, ans] = self._visa.ask_for_values('%dSU%s?'%(channel,direction))
         return int(ans)
 
@@ -310,12 +319,14 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         amplitude in the backward direction.
         step_size = Integer between -50 and 50 included, except zero
         """
+        self.buffer_clear()
         self._visa.write('%dSU%d'%(channel,step_size))
 
     def do_get_error(self): #OK!
         """
         Returns error of the previous command.
         """
+        self.buffer_clear()
         rawans = self._visa.ask('TE')
         err_dict = {0 : 'No error',
                     -1 : 'Unknown command',
@@ -342,6 +353,7 @@ class NewportAgilisUC2_v2_lt1(Instrument):
         Returns TPnn, where nn is the number of accumulated steps in forward
         direction minus the number of steps in backward direction as Integer.
         """
+        self.buffer_clear()
         self._visa.write('%dTP'%channel)
         [ch_nr, ans] = self._visa.read_values()
 
@@ -359,6 +371,7 @@ class NewportAgilisUC2_v2_lt1(Instrument):
             parameter different than 0).
         3   Moving to limit (currently executing MV, MA, PA commands)
         """
+        self.buffer_clear()
         [ch, rawans] = self._visa.ask_for_values('%dTS'%channel)
         status_dict = {0 : 'Ready (not moving)',
                 1 : 'Stepping (currently executing a PR command)',

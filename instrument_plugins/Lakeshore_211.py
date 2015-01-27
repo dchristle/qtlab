@@ -9,9 +9,10 @@ import logging
 import math
 import time
 import pyvisa
+import qt
 
-CR = "\r"
-LF = "\n"
+CR = '\r'
+LF = '\n'
 
 class Lakeshore_211(Instrument):
 
@@ -47,11 +48,19 @@ class Lakeshore_211(Instrument):
     # Open serial connection
     def _open_serial_connection(self):
         logging.debug(__name__ + ' : Opening serial connection')
+        qt.rm.open_resource(self._address)
+        self._visa = qt.rm.get_instrument(self._address)
+        self._visa.baud_rate = long(9600)
+        self._visa.data_bits = 7
+        self._visa.stop_bits = 1
+        self._visa.read_termination = CR+LF
+        self._visa.write_termination = CR+LF
+        self._visa.parity = pyvisa.constants.VI_ASRL_PAR_ODD
 
-        self._visa = pyvisa.visa.SerialInstrument(self._address,
-                baud_rate=9600, data_bits=7, stop_bits=1,
-                parity=pyvisa.visa.odd_parity, term_chars="\r\n",
-                timeout=2)
+##        self._visa = pyvisa.visa.SerialInstrument(self._address,
+##                baud_rate=9600, data_bits=7, stop_bits=1,
+##                parity=pyvisa.visa.odd_parity, term_chars="\r\n",
+##                timeout=2)
         # The purpose of the short timeout is so that the buffer_clear()
         # operation that takes place with every command to ensure the proper
         # output doesn't take too long. Each buffer_clear() usually takes one
@@ -66,8 +75,8 @@ class Lakeshore_211(Instrument):
         logging.debug(__name__ + ' : Closing serial connection')
         self._visa.close()
 
-    def buffer_clear(self): # Got this from Zaber code
-        navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
+    def buffer_clear(self):
+        navail = self._visa.get_visa_attribute(pyvisa.VI_ATTR_ASRL_AVAIL_NUM)
         if navail > 0:
             reply = pyvisa.vpp43.read(self._visa.vi, navail)
 
