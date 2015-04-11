@@ -210,14 +210,14 @@ class Lockin_726x(Instrument):
         Read X value
         '''
         ans = self._visa.ask('X.')
-        return float(ans)
+        return float(ans.replace('\x00',''))
 
     def do_get_Y(self):
         '''
         Read Y value
         '''
         ans = self._visa.ask('Y.')
-        return float(ans)
+        return float(ans.replace('\x00',''))
 
     def get_XY(self):
         '''
@@ -240,6 +240,7 @@ class Lockin_726x(Instrument):
         Read Time Constant (TC) value
         '''
         ans = self._visa.ask('TC.')
+        print 'TC is %s' % ans
         return float(ans)
 
     def do_get_frequency(self):
@@ -247,7 +248,9 @@ class Lockin_726x(Instrument):
         Read frequency value (Hz)
         '''
         ans = self._visa.ask('FRQ.')
-        return float(ans)
+
+        new_ans = ans.replace('\x00','')
+        return float(new_ans)
 
     def do_set_gain(self,Gain):
         '''
