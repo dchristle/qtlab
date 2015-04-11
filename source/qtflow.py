@@ -258,25 +258,22 @@ class FlowControl(SharedGObject):
         '''Set / unset pause state.'''
         self._pause = pause
 
-    def start_program(self, program, *arg_list):
+    def start_gui(self):
         import qt
 
         curdir = os.getcwd()
         os.chdir(qt.config['execdir'])
 
         args = ['-p', str(qt.config['port']), '--name', qt.config['instance_name']]
-        args.extend(arg_list)
+        print 'Args: %s' % (args, )
         if os.name == 'nt':
-            args.insert(0, '%s.bat' % program)
-            os.spawnv(os.P_NOWAIT, '%s.bat' % program, args)
+            args.insert(0, 'qtlabgui.bat')
+            os.spawnv(os.P_NOWAIT, 'qtlabgui.bat', args)
         if os.name == 'posix':
-            args.insert(0, '%s' % program)
-            pid = os.spawnv(os.P_NOWAIT, program, args)
+            args.insert(0, 'qtlabgui')
+            pid = os.spawnv(os.P_NOWAIT, 'qtlabgui', args)
 
         os.chdir(curdir)
-
-    def start_gui(self):
-        self.start_program('qtlabgui')
 
     def close_gui(self):
         logging.info('Emitting close-gui signal')

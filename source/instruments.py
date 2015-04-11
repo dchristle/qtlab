@@ -279,13 +279,6 @@ class Instruments(SharedGObject):
             logging.warning('Instrument "%s" already exists, removing', name)
             self.remove(name)
 
-        # Set VISA provider
-        visa_driver = kwargs.get('visa', 'pyvisa')
-        # modified by David Christle, 2014 -- resolves a name conflict with
-        # an existing pyvisa .py file named visa.py
-        import qtvisa
-        qtvisa.set_visa(visa_driver)
-
         module = _get_driver_module(instype)
         if module is None:
             return self._create_invalid_ins(name, instype, **kwargs)
