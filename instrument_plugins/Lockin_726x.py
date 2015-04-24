@@ -1,5 +1,8 @@
 # Lockin_726x.py driver for EG&G/Signal Recovery 726x Lock-in Amplifier
+# 4/9/2014
+# W. F. Koehl <koehl@uchicago.edu>
 # F. J. Heremans <jhereman@gmail.com>
+# B. Diler <berkdiler@uchicago.edu>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -76,10 +79,42 @@ class Lockin_726x(Instrument):
 ##            flags=Instrument.FLAG_GET,
 ##            units='V', minval=0, maxval=10, type=types.FloatType)
         self.add_parameter('frequency',
-            flags=Instrument.FLAG_GET,
+            flags=Instrument.FLAG_GETSET,
             units='Hz', minval=0, maxval=10, type=types.FloatType)
+        self.add_parameter('sensitivity',
+            flags=Instrument.FLAG_GETSET,
+            units='V', minval=1, maxval=27, type=types.FloatType,
+            format_map={
+               1: '2e-9V',
+               2: '5e-9V',
+               3: '1e-8V',
+               4: '2e-8V',
+               5: '5e-8V',
+               6: '1e-7V',
+               7: '2e-7V',
+               8: '5e-7V',
+               9: '1e-6V',
+               10: '2e-6V',
+               11: '5e-6V',
+               12: '1e-5V',
+               13: '2e-5V',
+               14: '5e-5V',
+               15: '1e-4V',
+               16: '2e-4V',
+               17: '5e-4V',
+               18: '1e-3V',
+               19: '2e-3V',
+               20: '5e-3V',
+               21: '1e-2V',
+               22: '2e-2V',
+               23: '5e-2V',
+               24: '1e-1V',
+               25: '2e-1V',
+               26: '5e-1V',
+               27: '1V',
+            })
         self.add_parameter('gain',
-            flags=Instrument.FLAG_SET,
+            flags=Instrument.FLAG_GETSET,
             units='dB', minval=0, maxval=9, type=types.FloatType,
             format_map={
                0: '0dB',
@@ -209,15 +244,19 @@ class Lockin_726x(Instrument):
         '''
         Read X value
         '''
-        ans = self._visa.ask('X.')
-        return float(ans.replace('\x00',''))
+        answer = self._visa.ask('X.')
+        #Lockin returns a null byte when value is 0.  Need to remove it.
+        ans = answer.replace('\x00', '')
+        return float(ans)
 
     def do_get_Y(self):
         '''
         Read Y value
         '''
-        ans = self._visa.ask('Y.')
-        return float(ans.replace('\x00',''))
+        answer = self._visa.ask('Y.')
+        #Lockin returns a null byte when value is 0.  Need to remove it.
+        ans = answer.replace('\x00', '')
+        return float(ans)
 
     def get_XY(self):
         '''
@@ -228,6 +267,34 @@ class Lockin_726x(Instrument):
         # the string when the lockin returns 0E+00.
         XYvals = [float(x) for x in ans.replace('\x00','').split(',')]
         return XYvals
+
+    def get_MAG(self):
+        '''
+        Read MAG value (R)
+        '''
+        answer = self._visa.ask('MAG.')
+        #Lockin returns a null byte when value is 0.  Need to remove it.
+        ans = answer.replace('\x00', '')
+        return float(ans)
+
+    def get_PHA(self):
+        '''
+        Read PHA value (Theta)
+        '''
+        answer = self._visa.ask('PHA.')
+        #Lockin returns a null byte when value is 0.  Need to remove it.
+        ans = answer.replace('\x00', '')
+        return float(ans)
+
+    def get_MP(self):
+        '''
+        Read MAG&PHA values simultaneously (R&Theta)
+        '''
+        answer = self._visa.ask('MP.')
+        #Lockin returns a null byte when value is 0.  Need to remove it.
+        ans = answer.replace('\x00', '')
+        MPvals = [float(x) for x in ans.split(",")]
+        return MPvals
 
     def do_set_TC(self,TCval):
         '''
@@ -240,17 +307,15 @@ class Lockin_726x(Instrument):
         Read Time Constant (TC) value
         '''
         ans = self._visa.ask('TC.')
-        print 'TC is %s' % ans
         return float(ans)
 
     def do_get_frequency(self):
         '''
         Read frequency value (Hz)
         '''
-        ans = self._visa.ask('FRQ.')
-
-        new_ans = ans.replace('\x00','')
-        return float(new_ans)
+        answer = self._visa.ask('FRQ.')
+        ans = answer.replace('\x00', '')
+        return float(ans)
 
     def do_set_gain(self,Gain):
         '''
@@ -259,15 +324,22 @@ class Lockin_726x(Instrument):
         ans = self._visa.write('AUTOMATIC0')
         ans = self._visa.write('ACGAIN %d' % Gain)
 
-##    def do_set_Gain(self,Gain):
-##        '''
-##        Write Gain value
-##        '''
-##        ans = self._visa.write('ACGAIN%d' % Gain)
-##        return float(ans)
-##
-##    def do_get_Gain(self)
-##        '''
-##        Read Gain value
-##        '''
-##        ans = self.visa.ask(ACGAIN.)
+    def do_get_gain(self):
+        '''
+        Read Gain value
+        '''
+        ans = self._visa.ask("ACGAIN?")
+        return float(ans)
+
+    def do_set_sensitivity(self,sensval):
+        '''
+        Write Sensitivity value
+        '''
+        self._visa.write('SEN%d' % sensval)
+
+    def do_get_sensitivity(self):
+        '''
+        Read sensitivity value
+        '''
+        ans = self._visa.ask('SEN.')
+        return float(ans)

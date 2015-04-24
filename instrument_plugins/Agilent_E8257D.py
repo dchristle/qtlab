@@ -1,6 +1,7 @@
 # Agilent_E8257D.py class, to perform the communication between the Wrapper and the device
 # Pieter de Groot <pieterdegroot@gmail.com>, 2008
 # Martijn Schaafsma <qtlab@mcschaafsma.nl>, 2008
+# B. Diler <berkdiler@uchicago.edu>,2015
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,6 +55,8 @@ class Agilent_E8257D(Instrument):
         self.add_parameter('frequency',
             flags=Instrument.FLAG_GETSET, units='Hz', minval=1e5, maxval=20e9, type=types.FloatType)
         self.add_parameter('status',
+            flags=Instrument.FLAG_GETSET, type=types.StringType)
+        self.add_parameter('ALC',
             flags=Instrument.FLAG_GETSET, type=types.StringType)
 
         self.add_function('reset')
@@ -184,8 +187,8 @@ class Agilent_E8257D(Instrument):
         Output:
             status (string) : 'On' or 'Off'
         '''
-        logging.debug(__name__ + ' : get status')
-        stat = self._visainstrument.ask('OUTP?')
+        logging.debug(__name__ + ' : get ALC')
+        stat = self._visainstrument.ask(':POW:ALC?')
 
         if (stat=='1'):
           return 'on'
@@ -211,6 +214,45 @@ class Agilent_E8257D(Instrument):
         else:
             raise ValueError('set_status(): can only set on or off')
         self._visainstrument.write('OUTP %s' % status)
+
+    def do_get_ALC(self):
+        '''
+        Reads the ALC status from the instrument
+
+        Input:
+            None
+
+        Output:
+            status (string) : 'On' or 'Off'
+        '''
+        logging.debug(__name__ + ' : get status')
+        stat = self._visainstrument.ask(':POW:ALC?')
+
+        if (stat=='1'):
+          return 'on'
+        elif (stat=='0'):
+          return 'off'
+        else:
+          raise ValueError('Output status not specified : %s' % stat)
+        return
+
+    def do_set_ALC(self, status):
+        '''
+        Set the ALC status of the instrument
+
+        Input:
+            status (string) : 'On' or 'Off'
+
+        Output:
+            None
+        '''
+        logging.debug(__name__ + ' : set ALC to %s' % status)
+        if status.upper() in ('ON', 'OFF'):
+            status = status.upper()
+        else:
+            raise ValueError('set_status(): can only set on or off')
+        self._visainstrument.write(':POW:ALC %s' % status)
+        
 
     # shortcuts
     def off(self):
