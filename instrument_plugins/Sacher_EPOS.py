@@ -104,7 +104,6 @@ class Sacher_EPOS(Instrument):
         return output
 
     def open(self):
-        print 'yes'
 
         eposlib.VCS_OpenDevice.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(DWORD)]
         eposlib.VCS_OpenDevice.restype = ctypes.wintypes.HANDLE
@@ -114,17 +113,17 @@ class Sacher_EPOS(Instrument):
         print 'types are all %s %s %s %s %s' % (type(DeviceName), type(ProtocolStackName), type(InterfaceName), type(self._port_name), type(buf))
         ret = eposlib.VCS_OpenDevice(DeviceName, ProtocolStackName, InterfaceName, self._port_name, buf)
         self._keyhandle = ret
-        print 'keyhandle is %s' % self._keyhandle
-        print 'open device ret %s' % buf
-        print 'printing'
-        print buf.contents.value
-        print 'done printer'
+        #print 'keyhandle is %s' % self._keyhandle
+        #print 'open device ret %s' % buf
+        #print 'printing'
+        #print buf.contents.value
+        #print 'done printer'
         if int(buf.contents.value) >= 0:
             self._is_open = True
             self._keyhandle = ret
         return
     def close(self):
-        print 'closing'
+        print 'closing EPOS motor.'
 
         eposlib.VCS_CloseDevice.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(DWORD)]
         eposlib.VCS_CloseDevice.restype = ctypes.wintypes.BOOL
@@ -135,7 +134,7 @@ class Sacher_EPOS(Instrument):
         ret = eposlib.VCS_CloseDevice(self._keyhandle, buf)
 
 
-        print 'close device ret %s' % buf
+        print 'close device returned %s' % buf
 
         if int(buf.contents.value) >= 0:
             self._is_open = False
@@ -169,7 +168,7 @@ class Sacher_EPOS(Instrument):
         self.set_target_position(steps, False, True)
         new_motor_pos = self.get_motor_position()
         print 'New motor position is %s' % new_motor_pos
-        print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
+        #print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
         self.set_new_offset(new_motor_pos-current_motor_pos+self._offset)
 
     def set_new_offset(self, new_offset):
@@ -177,7 +176,7 @@ class Sacher_EPOS(Instrument):
         buf = ctypes.wintypes.DWORD(0)
         eposlib.VCS_SetObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.wintypes.WORD, ctypes.c_uint8, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_SetObject.restype = ctypes.wintypes.BOOL
-        print 'setting new offset'
+        #print 'setting new offset'
 
         StoredPositionObject = ctypes.wintypes.WORD(8321)
         StoredPositionObjectSubindex = ctypes.c_uint8(0)
@@ -201,9 +200,9 @@ class Sacher_EPOS(Instrument):
         eposlib.VCS_GetPositionIs.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.POINTER(ctypes.c_long), ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_GetPositionIs.restype = ctypes.wintypes.BOOL
         ret = eposlib.VCS_GetPositionIs(self._keyhandle, nodeID, pPosition, ctypes.byref(buf))
-        print 'get motor position ret %s' % ret
-        print 'get motor position buf %s' % buf.value
-        print 'get motor position value %s' % pPosition.contents.value
+        #print 'get motor position ret %s' % ret
+        #print 'get motor position buf %s' % buf.value
+        #print 'get motor position value %s' % pPosition.contents.value
         return pPosition.contents.value
 
     def set_target_position(self, target, absolute, immediately):
@@ -211,41 +210,41 @@ class Sacher_EPOS(Instrument):
         buf = ctypes.wintypes.DWORD(0)
         # First, set enabled state
         ret = eposlib.VCS_SetEnableState(self._keyhandle,nodeID,ctypes.byref(buf))
-        print 'Enable state ret %s buf %s' % (ret, buf.value)
+        #print 'Enable state ret %s buf %s' % (ret, buf.value)
         pTarget = ctypes.c_long(target)
         pAbsolute = ctypes.wintypes.BOOL(absolute)
         pImmediately = ctypes.wintypes.BOOL(immediately)
         eposlib.VCS_MoveToPosition.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.c_long, ctypes.wintypes.BOOL, ctypes.wintypes.BOOL, ctypes.POINTER(ctypes.wintypes.DWORD)]
         eposlib.VCS_MoveToPosition.restype = ctypes.wintypes.BOOL
-        print 'About to set motor position'
-        print 'Current motor position is %d' % (self.get_motor_position())
+        #print 'About to set motor position'
+        #print 'Current motor position is %d' % (self.get_motor_position())
         ret = eposlib.VCS_MoveToPosition(self._keyhandle, nodeID, pTarget, pAbsolute, pImmediately, ctypes.byref(buf))
-        print 'set motor position ret %s' % ret
-        print 'set motor position buf %s' % buf.value
+        #print 'set motor position ret %s' % ret
+        #print 'set motor position buf %s' % buf.value
 
         steps_per_second = 14494.0 # hardcoded, estimated roughly, unused now
 
         nchecks = 0
-        while nchecks < 15:
+        while nchecks < 35:
             # get the movement state. a movement state of 1 indicates the motor
             # is done moving
             pMovementState = ctypes.pointer(ctypes.wintypes.BOOL())
             eposlib.VCS_GetMovementState.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.WORD, ctypes.POINTER(ctypes.wintypes.BOOL), ctypes.POINTER(ctypes.wintypes.DWORD)]
             eposlib.VCS_GetMovementState.restype = ctypes.wintypes.BOOL
-            print 'Getting movement state'
+            #print 'Getting movement state'
             ret = eposlib.VCS_GetMovementState(self._keyhandle, nodeID, pMovementState, ctypes.byref(buf))
-            print 'set motor position ret %s' % ret
-            print 'set motor position buf %s' % buf.value
-            print 'Movement state is %s' % pMovementState.contents.value
+            #print 'set motor position ret %s' % ret
+            #print 'set motor position buf %s' % buf.value
+            #print 'Movement state is %s' % pMovementState.contents.value
             if pMovementState.contents.value == 1:
                 break
             nchecks = nchecks + 1
-            print 'Current motor position is %d' % (self.get_motor_position())
-            time.sleep(6.0)
+            #print 'Current motor position is %d' % (self.get_motor_position())
+            time.sleep(3.0)
         # Now set disabled state
         ret = eposlib.VCS_SetDisableState(self._keyhandle,nodeID,ctypes.byref(buf))
-        print 'Disable state ret %s buf %s' % (ret, buf.value)
-        print 'Final motor position is %d' % (self.get_motor_position())
+        #print 'Disable state ret %s buf %s' % (ret, buf.value)
+        #print 'Final motor position is %d' % (self.get_motor_position())
         return ret
     def get_wavelength(self):
 
@@ -254,15 +253,15 @@ class Sacher_EPOS(Instrument):
         return self._currentwl
 
     def set_wavelength(self, wavelength):
-        print 'Coefficients are %s %s %s' % (self._doubleA, self._doubleB, self._doubleC)
+        #print 'Coefficients are %s %s %s' % (self._doubleA, self._doubleB, self._doubleC)
         nodeID = ctypes.wintypes.WORD(0)
         buf = ctypes.wintypes.DWORD(0)
         # Step 1: Get the actual motor position
-        print 'Getting motor position'
+        #print 'Getting motor position'
         current_motor_pos = self.get_motor_position()
         # Step 2: Get the motor offset
         self._offset = self.get_offset()
-        print 'Motor offset is %s' % self._offset
+        #print 'Motor offset is %s' % self._offset
         # Step 3: Convert the desired wavelength into a position
         # Check sign of position-to-wavelength
         pos0 = self._doubleA*(0.0)**2.0 + self._doubleB*0.0 + self._doubleC
@@ -282,29 +281,29 @@ class Sacher_EPOS(Instrument):
         #print 'Position is %s' % x
         wavelength_to_pos = int(round(x))
         # Step 4: Calculate difference between the output position and the stored offset
-        print 'Step 4...'
+        #print 'Step 4...'
         diff_wavelength_offset = wavelength_to_pos - int(self._offset)
-        print 'Diff wavelength offset %s' % diff_wavelength_offset
+        #print 'Diff wavelength offset %s' % diff_wavelength_offset
         # Step 5: If HPM is activated and the wavelength position is lower, overshoot
         # the movement by 10,000 steps
-        print 'Step 5...'
+        #print 'Step 5...'
         if self._HPM and diff_wavelength_offset < 0:
-            print 'Overshooting by 10000'
+            #print 'Overshooting by 10000'
             self.set_target_position(diff_wavelength_offset - 10000, False, True)
             # Step 6: Set the real target position
-            print 'Step 6a... diff wavelength'
+            #print 'Step 6a... diff wavelength'
             self.set_target_position(10000, False, True)
         else:
-            print 'Step 6b... diff wavelength'
+            #print 'Step 6b... diff wavelength'
             self.set_target_position(diff_wavelength_offset, False, True)
         # Step 7: Get the actual motor position
         new_motor_pos = self.get_motor_position()
-        print 'New motor position is %s' % new_motor_pos
-        print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
+        #print 'New motor position is %s' % new_motor_pos
+        #print 'new offset is %s' % (new_motor_pos-current_motor_pos+self._offset)
         self.set_new_offset(new_motor_pos-current_motor_pos+self._offset)
 
         # Step 8, get and print current wavelength
-        print 'Current wavelength is %.3f' % self.get_wavelength()
+        #print 'Current wavelength is %.3f' % self.get_wavelength()
 
         return
 
@@ -327,7 +326,7 @@ class Sacher_EPOS(Instrument):
         BaudRate = DWORD(38400)
         Timeout = DWORD(100)
         ret = eposlib.VCS_SetProtocolStackSettings(self._keyhandle,BaudRate,Timeout,ctypes.byref(buf))
-        print 'set protocol buf %s ret %s' % (buf, ret)
+        #print 'set protocol buf %s ret %s' % (buf, ret)
         if ret == 0:
             errbuf = ctypes.create_string_buffer(64)
             #eposlib.VCS_GetErrorInfo(buf, errbuf, WORD(64))
@@ -336,7 +335,7 @@ class Sacher_EPOS(Instrument):
 
         buf = ctypes.wintypes.DWORD(0)
         ret = eposlib.VCS_ClearFault(self._keyhandle,nodeID,ctypes.byref(buf))
-        print 'clear fault buf %s, ret %s' % (buf, ret)
+        #print 'clear fault buf %s, ret %s' % (buf, ret)
         if ret == 0:
             errbuf = ctypes.create_string_buffer(64)
             eposlib.VCS_GetErrorInfo(buf, errbuf, WORD(64))
@@ -344,7 +343,7 @@ class Sacher_EPOS(Instrument):
         buf = ctypes.wintypes.DWORD(0)
         plsenabled = ctypes.wintypes.DWORD(0)
         ret = eposlib.VCS_GetEnableState(self._keyhandle,nodeID,ctypes.byref(plsenabled),ctypes.byref(buf))
-        print 'get enable state buf %s ret %s and en %s' % (buf, ret, plsenabled)
+        #print 'get enable state buf %s ret %s and en %s' % (buf, ret, plsenabled)
         if ret == 0:
             errbuf = ctypes.create_string_buffer(64)
             eposlib.VCS_GetErrorInfo(buf, errbuf, WORD(64))
@@ -496,7 +495,7 @@ class Sacher_EPOS(Instrument):
         # print 'first %s second %s' % (firstHalf, secondHalf)
         # This returns '10871' and '11859' for the Sacher, which are the correct
         # wavelength ranges in Angstroms
-        print 'Now calculate the current wavelength position'
+        #print 'Now calculate the current wavelength position:'
         self._currentwl = self._doubleA*(self._offset)**2.0 + self._doubleB*self._offset + self._doubleC
-        print 'Current wl %f' % self._currentwl
+        print 'Current wavelength: %.3f nm' % self._currentwl
         return True
