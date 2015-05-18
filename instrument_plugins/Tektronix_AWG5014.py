@@ -223,6 +223,7 @@ class Tektronix_AWG5014(Instrument):
         self.add_function('pack_waveform')
         self.add_function('clear_visa')
         self.add_function('initialize_dc_waveforms')
+        self.add_function('reconnect_visa')
 
         if reset:
             self.reset()
@@ -239,7 +240,11 @@ class Tektronix_AWG5014(Instrument):
             except(visa.VisaIOError):
                 print 'reset complete'
                 break
-
+    def reconnect_visa(self):
+        # This function is to be used to reconnect via TCP/IP if the connection
+        # has dropped after being unused for a time.
+        self._visainstrument = visa.instrument(self._address, timeout=20)
+        return
     def reset(self):
         '''
         Resets the instrument to default values
