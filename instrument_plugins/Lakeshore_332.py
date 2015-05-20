@@ -40,6 +40,9 @@ class Lakeshore_332(Instrument):
             type=types.FloatType,
             channels=self._channels,
             units='K')
+        self.add_parameter('heater_status',
+            flags=Instrument.FLAG_GET,
+            type=types.IntType)
 
         self.add_parameter('sensor',
             flags=Instrument.FLAG_GET,
@@ -114,6 +117,10 @@ class Lakeshore_332(Instrument):
     def do_get_sensor(self, channel):
         ans = self._visa.ask('SRDG? %s' % channel)
         return float(ans)
+
+    def do_get_heater_status(self):
+        ans = self._visa.ask('HTRST?')
+        return int(ans)
 
     def do_get_heater_range(self):
         ans = self._visa.ask('RANGE?')
