@@ -46,6 +46,8 @@ class PeakFinder(PeakFinderBase):
         self._fit = kwargs.get('fit', FIT_LORENTZIAN)
         self._fitwidth = kwargs.get('fitwidth', 30)
         self._threshold = kwargs.get('threshold', 3)
+        self._min_amp_threshold = kwargs.get('min_amp_threshold', 0)
+        self._max_amp_threshold = kwargs.get('max_amp_threshold', 2.0)
         PeakFinderBase.__init__(self, *args, **kwargs)
 
     def _fit_bg(self, order):
@@ -76,7 +78,7 @@ class PeakFinder(PeakFinderBase):
             if sign > 0:
                 maxloc = np.argmax(self._ydata)
                 maxval = self._ydata[maxloc]
-                if maxval < avg + self._threshold * std:
+                if maxval < avg + self._threshold * std or maxval < self._min_amp_threshold:
                     break
             else:
                 maxloc = np.argmin(self._ydata)
@@ -102,7 +104,8 @@ class PeakFinder(PeakFinderBase):
             if sign * p[1] < 0:
                 print 'Peak of wrong sign found'
             h = f.get_height() + sign * p[0]   # Height including background
-            peaks.append([pos, h, w])
+            if f.get_height() < self._max_amp_threshold:
+                peaks.append([pos, h, w])
 
             import matplotlib.pyplot as plt
             plt.plot(self._xdata, self._ydata + 2 * i)
