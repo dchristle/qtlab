@@ -79,8 +79,8 @@ class Lockin_726x(Instrument):
 ##            flags=Instrument.FLAG_GET,
 ##            units='V', minval=0, maxval=10, type=types.FloatType)
         self.add_parameter('frequency',
-            flags=Instrument.FLAG_GETSET,
-            units='Hz', minval=0, maxval=10, type=types.FloatType)
+            flags=Instrument.FLAG_GET,
+            units='Hz', type=types.FloatType)
         self.add_parameter('sensitivity',
             flags=Instrument.FLAG_GETSET,
             units='V', minval=1, maxval=27, type=types.FloatType,
