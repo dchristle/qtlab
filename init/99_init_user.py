@@ -33,3 +33,9 @@ if qt.config['ipython_logfile'] not in (None, ''):
     _ip = get_ipython()
     _ip.IP.logger.logstart(logfname=qt.config['ipython_logfile'], logmode='append')
 
+### Config Manager ###
+from measurement.lib.measurement2.cfgman import ConfigManager
+qt.cfgman = ConfigManager('setup')
+##        'setup',
+##        'samples',
+##        'protocols',
