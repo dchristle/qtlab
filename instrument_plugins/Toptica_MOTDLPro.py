@@ -208,9 +208,13 @@ class TOPTICA_MOTDLPro(Instrument):
                              (3, 39) : ("Input0 edge type", TR_m4, T_RWE),
                              (3, 40) : ("Input0 edge type", TR_m4, T_RWE)
                            }
-##        # add general purpose registers
-##        for b, p, a in zip([2]*256, range(256), ([T_RWE]*56)+([T_RW]*200)):
-##            GLOBAL_PARAMETER[(2, p)] = ("general purpose reg#{0:0>3d}".format(p), TR_32s, a)
+        # start the initialization of the TOPTICA MOT/DLPro.
+        self._open_serial_connection()
+        self._tmcl_stop_application()
+        self._init_dl_pro_parameters()
+        self._dl_get_cal_data()
+        self._do_reference_search()
+
 
 
      # Open serial connection
@@ -230,7 +234,12 @@ class TOPTICA_MOTDLPro(Instrument):
         '''
         logging.debug(__name__ + ' : Closing serial connection')
         self._visa.close()
-    def init_dl_pro_parameters(self):
+
+    def _tmcl_stop_application(self):
+        self.tmcl_w_crc(self.encodeRequestCommand(1, 28, 0, 0, 0, debug = False))    # stop any running TMCL application
+        return
+
+    def _init_dl_pro_parameters(self):
         self.set_sap_for_all_motors(4, 1000)    # set speed to 1000
         self.set_sap_for_all_motors(5, 100)     # set max accel to 100
         self.set_sap_for_all_motors(6, 42)      # set maxcurrentl to 250 - this is in units of 255 = 100%; I think the max current is 1.5 A so this is ~250 mA.
@@ -239,18 +248,54 @@ class TOPTICA_MOTDLPro(Instrument):
         self.set_sap_for_all_motors(13, 0)      # enable left limit switch
         self.set_sap_for_all_motors(140, 4)     # set microstep resolution to 16 microsteps (parameter value = 4)
         self.set_sap_for_all_motors(143, 1)     # set rest current to approximately 12%
+        self.set_sap_for_all_motors(153, 7)     # set ramp to 7
+        self.set_sap_for_all_motors(154, 3)     # set pulse to 3
+        self.set_sap_for_all_motors(194, 1000)  # set reference speed to 1000
+        self.set_sap_for_all_motors(204, 10)    # set FreeWheelTime to 10
+        self.set_sap_for_all_motors(203, 100)   # set the mixed decay threshold to 100
+        for i in range(6):
+            self.tmcl_w_crc(self.encodeRequestCommand(1, 14, int(i+1), 0, 0, debug = False)) # do an SIO command for type = 1 to 6 for motor 0, setting some digital output lines to 0
         return
+
+    def _dl_get_cal_data(self):
+        # this function could be expanded to actually read the calibration data from the module, but
+        # it's quicker for me to hardcode in the retrieved values instead from the LabVIEW VI.
+        self._upper_wavelength_limit = 1144.51
+        self._lower_wavelength_limit = 1064.86
+        # p0, p1, and p2 are polynomial coefficients that convert wavelength in nm to motor step position
+        self._p0 = -1.15278e6
+        self._p1 = 64.5135
+        self._p2 = 0.962788
+        self._backlash = 5035
+        return
+
+    def _do_reference_search(self):
+        self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 0, 0, 0, debug = False))   # starts the reference search
+        time_start = time.time()
+        while (time.time()-time_start < 120.0):
+            ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 2, 0, 0, debug = False))   # checks the status of the reference search
+            if ret_byte_array['value'] == 0:
+                # a return value of 0 indicates the reference search has completed
+                logging.debug(__name__ + ': reference search completed successfully.')
+                break
+            # if the reference search status returns a value other than 0, the search is still ongoing
+        if time.time()-time_start >= 120.0:
+            logging.warning(__name__ +': reference search on initialization did not finish before timeout.')
+            # this condition indicates that we probably stopped the while loop, so we abort the reference search
+            self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 1, 0, 0, debug = False))   # aborts the reference search
+        return
+
     def set_sap_for_all_motors(self, sap_type, sap_value):
         # this method sets the axis parameter for motors 0, 1, and 2, although it
         # seems like only motor 0 is used later by the MOT/DL.
         for i in range(3):
             self.tmcl_w_crc(self.encodeRequestCommand(1, 5, sap_type, int(i), sap_value, debug = False))
 
-    def tmcl_w_crc(self,command):
+    def tmcl_w_crc(self, command):
         self._visa.write(command)
         ret = pyvisa.vpp43.read(self._visa.vi, 9)
         ret_decode = self.decodeReplyCommand(ret)
-        return
+        return ret_decode
 
 
     def encodeRequestCommand(self, m_address, n_command, n_type, n_motor, value, debug=False):
