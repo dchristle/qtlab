@@ -12,9 +12,14 @@
 # parameters manually here for our laser, so these need to be changed if this driver
 # is used for another laser. The read/calculate procedure is a little complicated
 # for those parameters, so I chose to skip it.
+#
+# IMPORTANT: TO BE COMPATIBLE WITH TOPTICA'S CODE, IF YOU LOOK IN THE
+# GENERATE/SEND COMMAND VI, FOR SOME REASON THE AUTHOR TAKES THE INTEGER
+# 2 AND SUBTRACTS THE MOTOR NUMBER FROM IT. SO MOTOR 0 IN THE TOPTICA
+# VI IS ACTUALLY MOTOR 2 IN THE TMCL CODE.
 
 from instrument import Instrument
-import visa
+#import visa
 import types
 import logging
 import numpy
@@ -23,9 +28,11 @@ import qt
 import numpy as np
 import pyvisa
 import struct
+import serial
 
-
-
+TMCL_OK_STATUS = {100, # successfully executed
+                  101, # commanded loaded in memory
+}
 class Toptica_MOTDLPro(Instrument):
 
 #----------------------------------------------
@@ -37,7 +44,7 @@ class Toptica_MOTDLPro(Instrument):
         Instrument.__init__(self, name, tags = ['physical'])
 
         self._address = address
-        self._visa = visa.instrument(self._address)
+        #self._visa = visa.instrument(self._address)
 
         self._STATUSCODES = { 100 : "Succesfully executed, no error",
                     101 : "Command loaded into TMCL program EEPROM",
@@ -214,27 +221,54 @@ class Toptica_MOTDLPro(Instrument):
             type = types.FloatType,
             units = 'nm',
             minval=1064.86, maxval=1144.51)
-
+        self._target = 1
+        self.add_function('reference_search')
     def open_device(self):
         # start the initialization of the TOPTICA MOT/DLPro.
         self._open_serial_connection()
-        self.buffer_clear()
+
         self._tmcl_stop_application()
         self._init_dl_pro_parameters()
         self._dl_get_cal_data()
-        time.sleep(1)
-        # self._do_reference_search() # for some reason, the reference search does not finish here in Python but it does in LabView, even for what I think are nominally the same command sequences.
+        #time.sleep(1)
+        #self._do_reference_search() # for some reason, the reference search does not finish here in Python but it does in LabView, even for what I think are nominally the same command sequences.
+        print 'Current position is %d' % self.get_current_position()
 
 
 
+    def _instr_to_str(self, instr):
+        """
+        instr (buffer of 9 bytes)
+        """
+        target, n, typ, mot, val, chk = struct.unpack('>BBBBiB', instr)
+        s = "%d, %d, %d, %d, %d (%d)" % (target, n, typ, mot, val, chk)
+        return s
+
+
+    def _reply_to_str(self, rep):
+        """
+        rep (buffer of 9 bytes)
+        """
+        ra, rt, status, rn, rval, chk = struct.unpack('>BBBBiB', rep)
+        s = "%d, %d, %d, %d, %d (%d)" % (ra, rt, status, rn, rval, chk)
+        return s
      # Open serial connection
     def _open_serial_connection(self):
         logging.debug(__name__ + ' : Opening serial connection')
 
-        self._visa = pyvisa.visa.SerialInstrument(self._address,
-                baud_rate=9600, data_bits=8, stop_bits=1,
-                parity=pyvisa.visa.no_parity, term_chars=pyvisa.visa.LF,
-                send_end=True,timeout=10)
+        #self._visa = pyvisa.visa.SerialInstrument(self._address,
+        #        baud_rate=9600, data_bits=8, stop_bits=1,
+        #        parity=pyvisa.visa.no_parity, term_chars='',send_end=False,
+        #        timeout=10)
+        self._serial = serial.Serial(
+                port=self._address,
+                baudrate=9600, # TODO: can be changed by RS485 setting p.85?
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=0.1 )
+        #self._serial = serial.Serial(self._address, 9600, 8, 'N', 1, 0.1)
+
 
 
     # Close serial connection
@@ -243,32 +277,35 @@ class Toptica_MOTDLPro(Instrument):
         Closes the serial connection
         '''
         logging.debug(__name__ + ' : Closing serial connection')
-        self._visa.close()
+        #self._visa.close()
+        self._serial.close()
+        return
     def close_device(self):
         self._close_serial_connection()
         return
 
-    def buffer_clear(self): # Got this from Zaber code
-        navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
-        print '%d bytes available, reading...' % navail
-        its = 0
-        while (navail > 0 and its < 200):
-            navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
-            reply = pyvisa.vpp43.read(self._visa.vi, navail)
-            its += 1
+##    def buffer_clear(self): # Got this from Zaber code
+##        navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
+##        print '%d bytes available, reading...' % navail
+##        its = 0
+##        while (navail > 0 and its < 200):
+##            navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
+##            reply = pyvisa.vpp43.read(self._visa.vi, navail)
+##            its += 1
     def _tmcl_stop_application(self):
-        self.tmcl_w_crc(self.encodeRequestCommand(1, 128, 0, 0, 0, debug = False))    # stop any running TMCL application
-        return
+        #self.tmcl_w_crc(self.encodeRequestCommand(1, 128, 0, 0, 0, debug = False))    # stop any running TMCL application
+        ret = self.SendInstruction(128,0,0,0)
+        return ret
 
     def _init_dl_pro_parameters(self):
         self.set_sap_for_all_motors(4, 1000)    # set speed to 1000
-        self.set_sap_for_all_motors(5, 250)     # set max accel to 100
+        self.set_sap_for_all_motors(5, 100)     # set max accel to 100
         self.set_sap_for_all_motors(6, 42)      # set maxcurrentl to 250 - this is in units of 255 = 100%; I think the max current is 1.5 A so this is ~250 mA.
         self.set_sap_for_all_motors(7, 0)       # set standby current to 0
         self.set_sap_for_all_motors(12, 1)      # disable right limit switch
         self.set_sap_for_all_motors(13, 0)      # enable left limit switch
         self.set_sap_for_all_motors(140, 4)     # set microstep resolution to 16 microsteps (parameter value = 4)
-        self.set_sap_for_all_motors(143, 1)     # set rest current to approximately 12%
+        #self.set_sap_for_all_motors(143, 2)     # set rest current to approximately 12%
         self.set_sap_for_all_motors(153, 7)     # set ramp to 7
         self.set_sap_for_all_motors(154, 3)     # set pulse to 3
         self.set_sap_for_all_motors(194, 1000)  # set reference speed to 1000
@@ -276,14 +313,58 @@ class Toptica_MOTDLPro(Instrument):
         self.set_sap_for_all_motors(204, 30)    # set FreeWheelTime to 10
 
         for i in range(6):
-
-            self.tmcl_w_crc(self.encodeRequestCommand(1, 14, i, 0, 0, debug = False)) # do an SIO command for type = 0 to 5 for motor 0, setting some digital output lines to 0
+            #self.tmcl_w_crc(self.encodeRequestCommand(1, 14, i, 0, 0, debug = False)) # do an SIO command for type = 0 to 5 for motor 0, setting some digital output lines to 0
+            self.SendInstruction(14,i,0,0)
         return
+    def SendCmd(self, address, command, cmd_type, motor, value):
+        Tx = {}
+
+        if value < 0:
+            """ checks for negative numbers
+        and converts them to appropriate value for
+        the Trinamic control"""
+            value += 4294967296
+
+        Tx[0] = (address)
+        Tx[1] = (command)
+        Tx[2] = (cmd_type)
+        Tx[3] = (motor)
+        hex_value = ('%08x' % value)
+        print("Hex value:", hex_value,"\n")
+        Tx[4] = int(hex_value[0:2],16)
+        Tx[5] = int(hex_value[2:4],16)
+        Tx[6] = int(hex_value[4:6],16)
+        Tx[7] = int(hex_value[6:],16)
+        Tx[8] = 0
+        i = 0
+        cmd_array = []
+        while i < 8:
+            Tx[8] += Tx[i]
+            cmd_array.append(Tx[i])
+            #print('byte',i,'int',Tx[i],' Checksum:',Tx[8])
+            i += 1
+        Tx[8] = ("%08x" % Tx[8])
+        #print('raw hex checksum:',Tx[8])
+        Tx[8] = int(Tx[8][-2:],16)
+        cmd_array.append(Tx[8])
+        print('hex checksum parsed int',Tx[8])
+
+        i = 0
+        ser = self._serial
+        cmd_bytes = bytearray(cmd_array)
+        print(cmd_bytes)
+        ser.write(cmd_bytes)
+
+
+        reply = ser.read(9)
+        print('reply:',reply)
+        ret_decode = self.decodeRequestCommand(reply)
+        return ret_decode
 
     def _dl_get_cal_data(self):
         # this function could be expanded to actually read the calibration data from the module, but
         # it's quicker for me to hardcode in the retrieved values instead from the LabVIEW VI.
-        self._restore_global_parameters()
+        #self._restore_global_parameters()
         self._upper_wavelength_limit = 1144.51
         self._lower_wavelength_limit = 1064.86
         # p0, p1, and p2 are polynomial coefficients that convert wavelength in nm to motor step position
@@ -307,33 +388,41 @@ class Toptica_MOTDLPro(Instrument):
         return int(step)
     def _restore_global_parameters(self):
         for i in range(34):
-            ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 12, 20+i, 0, 0, debug = False))
+            #ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 12, 20+i, 0, 0, debug = False))
+            #ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 10, 20+i, 0, 0, debug = False))
+            ret = self.SendInstruction(12,20+i,0,0)
+            ret = self.SendInstruction(10,20+i,0,0)
+
         return
-    def _do_reference_search(self):
-        self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 0, 0, 0, debug = False))   # starts the reference search
+    def reference_search(self):
+        #self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 0, 0, 0, debug = False))   # starts the reference search
+        self.SendInstruction(13,0,0,0)
         time_start = time.time()
 
         while (time.time()-time_start < 30.0):
-            ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 2, 0, 0, debug = False))   # checks the status of the reference search
-            print 'return byte array is %s' % ret_byte_array['value']
-            if ret_byte_array['value'] == 0:
+            time.sleep(0.2)
+            #ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 2, 0, 0, debug = False))   # checks the status of the reference search
+            ret = self.SendInstruction(13,2,0,0)
+            print 'return byte array is %d' % ret
+            if ret == 0:
                 # a return value of 0 indicates the reference search has completed
                 logging.debug(__name__ + ': reference search completed successfully.')
                 break
-            time.sleep(0.05)
-            print 'step is %d' % self.get_current_position()
-            time.sleep(0.05)
+
+
+
             # if the reference search status returns a value other than 0, the search is still ongoing
         if time.time()-time_start >= 30.0:
             logging.warning(__name__ +': reference search on initialization did not finish before timeout.')
             # this condition indicates that we probably stopped the while loop, so we abort the reference search
-            self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 1, 0, 0, debug = False))   # aborts the reference search
+            #self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 1, 0, 0, debug = False))   # aborts the reference search
+            ret = self.SendInstruction(13,2,0,0)
         return
     def do_set_wavelength(self, wavelength):
         # first calculate the step position we want to get to
         desired_step = self.convert_wavelength_to_step(wavelength)
         # now retrieve the current step position
-        current_step = self._get_current_position()
+        current_step = self.get_current_position()
         if current_step < desired_step:
             # if we make a movement to the left, set the desired step
             # to beyond by the "backlash" calibration parameter
@@ -343,14 +432,20 @@ class Toptica_MOTDLPro(Instrument):
 
     def do_get_wavelength(self):
         # retrieve the current step position
-        current_step = self._get_current_position()
+        current_step = self.get_current_position()
         # convert it to wavelength
         current_wavelength = self.convert_step_to_wavelength(current_step)
         return current_wavelength
 
     def get_current_position(self):
-        ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 6, 1, 0, 0, debug = False))
-        return ret_byte_array['value']
+        ret = self.SendInstruction(6,1,0,0)
+        return ret
+
+    def move_and_wait(self,step):
+        self.move_to_position(step)
+        self.wait_for_position(step)
+        return
+
     def move_to_position(self, step):
         if step > 800000:
             step = 800000
@@ -359,7 +454,7 @@ class Toptica_MOTDLPro(Instrument):
             step = 0
             logging.error(__name__ + ': step had to be coerced to 0.')
 
-        ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 4, 0, 0, int(step), debug = False))
+        ret = self.SendInstruction(4,0,0,int(step))
         return
     def wait_for_position(self, step):
         if step > 800000:
@@ -370,77 +465,76 @@ class Toptica_MOTDLPro(Instrument):
             logging.error(__name__ + ': step had to be coerced to 0.')
         time_start = time.time()
         while (time.time() - time_start < 120.0):
-            ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 4, 0, 0, int(step), debug = False))
-            if (np.uint8(ret_byte_array['value']) == np.uint8(step)):
+            ret = self.SendInstruction(6,1,0,step)
+            if ret == step:
                 break
             time.sleep(2.0)
         if (time.time() - time_start > 120.0):
             logging.error(__name__ + ': timed out while waiting for position move.')
             return False
-        return True
+        return
 
     def set_sap_for_all_motors(self, sap_type, sap_value):
-        # this method sets the axis parameter for motors 0, 1, and 2, although it
-        # seems like only motor 0 is used later by the MOT/DL.
         for i in range(3):
-            self.buffer_clear()
-            self.tmcl_w_crc(self.encodeRequestCommand(1, 5, sap_type, i, sap_value, debug = False))
+            self.SendInstruction(5,sap_type,int(i),sap_value)
 
-    def tmcl_w_crc(self, command):
-        self._visa.write(command)
-        ret = pyvisa.vpp43.read(self._visa.vi, 9)
-        ret_decode = self.decodeRequestCommand(ret)
-        return ret_decode
+
 
     def SendInstruction(self, n, typ=0, mot=0, val=0):
-        """
-        Sends one instruction, and return the reply.
-        n (0<=int<=255): instruction ID
-        typ (0<=int<=255): instruction type
-        mot (0<=int<=255): motor/bank number
-        val (0<=int<2**32): value to send
-        return (0<=int<2**32): value of the reply (if status is good)
-        raises:
-            IOError: if problem with sending/receiving data over the serial port
-            TMCLError: if status if bad
-        """
-        msg = numpy.empty(9, dtype=numpy.uint8)
-        struct.pack_into('>BBBBiB', msg, 0, self._target, n, typ, mot, val, 0)
-        # compute the checksum (just the sum of all the bytes)
-        msg[-1] = numpy.sum(msg[:-1], dtype=numpy.uint8)
+            """
+            Sends one instruction, and return the reply.
+            n (0<=int<=255): instruction ID
+            typ (0<=int<=255): instruction type
+            mot (0<=int<=255): motor/bank number
+            val (0<=int<2**32): value to send
+            return (0<=int<2**32): value of the reply (if status is good)
+            raises:
+                IOError: if problem with sending/receiving data over the serial port
+                TMCLError: if status if bad
+            """
+            # IMPORTANT: TO BE COMPATIBLE WITH TOPTICA'S CODE, IF YOU LOOK IN THE
+            # GENERATE/SEND COMMAND VI, FOR SOME REASON THE AUTHOR TAKES THE INTEGER
+            # 2 AND SUBTRACTS THE MOTOR NUMBER FROM IT. SO MOTOR 0 IN THE TOPTICA
+            # VI IS ACTUALLY MOTOR 2 IN THE TMCL CODE.
+            mot = 2-mot
+            # REMOVE THE ABOVE LINE TO MAKE IT COMPATIBLE WITH OTHER TMCL SYSTEMS
+            msg = numpy.empty(9, dtype=numpy.uint8)
+            struct.pack_into('>BBBBiB', msg, 0, self._target, n, typ, mot, val, 0)
+            # compute the checksum (just the sum of all the bytes)
+            msg[-1] = numpy.sum(msg[:-1], dtype=numpy.uint8)
 
-        logging.debug("Sending %s", self._instr_to_str(msg))
-        self._visa.write(command)
-        #self._serial.flush()
-        while True:
-            res = pyvisa.vpp43.read(self._visa.vi, 9)
-            if len(res) < 9: # TODO: TimeoutError?
-                logging.warning("Received only %d bytes after %s, will fail the instruction",
-                                len(res), self._instr_to_str(msg))
-                raise IOError("Received only %d bytes after %s" %
-                              (len(res), self._instr_to_str(msg)))
-            logging.debug("Received %s", self._reply_to_str(res))
-            ra, rt, status, rn, rval, chk = struct.unpack('>BBBBiB', res)
+            logging.debug("Sending %s", self._instr_to_str(msg))
+            self._serial.write(msg)
+            self._serial.flush()
+            while True:
+                res = self._serial.read(9)
+                if len(res) < 9: # TODO: TimeoutError?
+                    logging.warning("Received only %d bytes after %s, will fail the instruction",
+                                    len(res), self._instr_to_str(msg))
+                    raise IOError("Received only %d bytes after %s" %
+                                  (len(res), self._instr_to_str(msg)))
+                logging.debug("Received %s", self._reply_to_str(res))
+                ra, rt, status, rn, rval, chk = struct.unpack('>BBBBiB', res)
 
-            # Check it's a valid message
-            npres = numpy.frombuffer(res, dtype=numpy.uint8)
-            good_chk = numpy.sum(npres[:-1], dtype=numpy.uint8)
-            if chk == good_chk:
-                if self._target != 0 and self._target != rt:  # 0 means 'any device'
-                    logging.warning("Received a message from %d while expected %d",
-                                    rt, self._target)
-                if rn != n:
-                    logging.info("Skipping a message about instruction %d (waiting for %d)",
-                                 rn, n)
-                    continue
-                if status not in TMCL_OK_STATUS:
-                    raise TMCLError(status, rval, self._instr_to_str(msg))
-            else:
-                # TODO: investigate more why once in a while (~1/1000 msg)
-                # the message is garbled
-                logging.warning("Message checksum incorrect (%d), will assume it's all fine", chk)
+                # Check it's a valid message
+                npres = numpy.frombuffer(res, dtype=numpy.uint8)
+                good_chk = numpy.sum(npres[:-1], dtype=numpy.uint8)
+                if chk == good_chk:
+                    if self._target != 0 and self._target != rt:  # 0 means 'any device'
+                        logging.warning("Received a message from %d while expected %d",
+                                        rt, self._target)
+                    if rn != n:
+                        logging.info("Skipping a message about instruction %d (waiting for %d)",
+                                     rn, n)
+                        continue
+                    if status not in TMCL_OK_STATUS:
+                        raise TMCLError(status, rval, self._instr_to_str(msg))
+                else:
+                    # TODO: investigate more why once in a while (~1/1000 msg)
+                    # the message is garbled
+                    logging.warning("Message checksum incorrect (%d), will assume it's all fine", chk)
 
-            return rval
+                return rval
 
     def encodeRequestCommand(self, m_address, n_command, n_type, n_motor, value, debug=False):
         # convert to bytes
@@ -476,9 +570,14 @@ class Toptica_MOTDLPro(Instrument):
         byte_array = bytearray(cmd_string)
         if len(byte_array) != 9:
             print 'Length of byte array received is %d' % len(byte_array)
-            raise TMCLError("Command string shorter than 9 bytes")
+            #raise TMCLError("Command string shorter than 9 bytes")
+            ret = {}
+            ret['value'] = -1
+            #self.buffer_clear()
+            return ret
         if byte_array[8] != sum(byte_array[:8]) % (1<<8):
-            raise TMCLError("Checksum error in command %s" % cmd_string)
+            print 'checksum error'
+            #raise TMCLError("Checksum error in command %s" % cmd_string)
         ret = {}
         ret['module-address'] = byte_array[0]
         ret['command-number'] = byte_array[1]
@@ -487,7 +586,9 @@ class Toptica_MOTDLPro(Instrument):
         ret['value'] = sum(b << (3-i)*8 for i,b in enumerate(byte_array[4:8]))
         ret['checksum'] = byte_array[8]
 
-        print "".join([chr(byte_array[b]) for b in range(8)])
+        #print "".join([chr(byte_array[b]) for b in range(8)])
+        for i in range(8):
+            print 'byte %d is %d\n' %(i, byte_array[i])
         return ret
 
     def decodeReplyCommand(self, cmd_string):
