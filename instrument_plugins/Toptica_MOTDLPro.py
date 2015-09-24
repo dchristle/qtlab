@@ -256,18 +256,14 @@ class Toptica_MOTDLPro(Instrument):
     def _open_serial_connection(self):
         logging.debug(__name__ + ' : Opening serial connection')
 
-        #self._visa = pyvisa.visa.SerialInstrument(self._address,
-        #        baud_rate=9600, data_bits=8, stop_bits=1,
-        #        parity=pyvisa.visa.no_parity, term_chars='',send_end=False,
-        #        timeout=10)
         self._serial = serial.Serial(
                 port=self._address,
-                baudrate=9600, # TODO: can be changed by RS485 setting p.85?
+                baudrate=9600,
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
                 timeout=0.1 )
-        #self._serial = serial.Serial(self._address, 9600, 8, 'N', 1, 0.1)
+
 
 
 
@@ -277,21 +273,18 @@ class Toptica_MOTDLPro(Instrument):
         Closes the serial connection
         '''
         logging.debug(__name__ + ' : Closing serial connection')
-        #self._visa.close()
+
         self._serial.close()
         return
+
+    def __del__(self):
+        self.close_device()
+        return
+
     def close_device(self):
         self._close_serial_connection()
         return
 
-##    def buffer_clear(self): # Got this from Zaber code
-##        navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
-##        print '%d bytes available, reading...' % navail
-##        its = 0
-##        while (navail > 0 and its < 200):
-##            navail = pyvisa.vpp43.get_attribute(self._visa.vi, pyvisa.vpp43.VI_ATTR_ASRL_AVAIL_NUM)
-##            reply = pyvisa.vpp43.read(self._visa.vi, navail)
-##            its += 1
     def _tmcl_stop_application(self):
         #self.tmcl_w_crc(self.encodeRequestCommand(1, 128, 0, 0, 0, debug = False))    # stop any running TMCL application
         ret = self.SendInstruction(128,0,0,0)
@@ -313,58 +306,13 @@ class Toptica_MOTDLPro(Instrument):
         self.set_sap_for_all_motors(204, 30)    # set FreeWheelTime to 10
 
         for i in range(6):
-            #self.tmcl_w_crc(self.encodeRequestCommand(1, 14, i, 0, 0, debug = False)) # do an SIO command for type = 0 to 5 for motor 0, setting some digital output lines to 0
-            self.SendInstruction(14,i,0,0)
+            self.SendInstruction(14,i,0,0) # do an SIO command for type = 0 to 5 for motor 0, setting some digital output lines to 0
         return
-    def SendCmd(self, address, command, cmd_type, motor, value):
-        Tx = {}
-
-        if value < 0:
-            """ checks for negative numbers
-        and converts them to appropriate value for
-        the Trinamic control"""
-            value += 4294967296
-
-        Tx[0] = (address)
-        Tx[1] = (command)
-        Tx[2] = (cmd_type)
-        Tx[3] = (motor)
-        hex_value = ('%08x' % value)
-        print("Hex value:", hex_value,"\n")
-        Tx[4] = int(hex_value[0:2],16)
-        Tx[5] = int(hex_value[2:4],16)
-        Tx[6] = int(hex_value[4:6],16)
-        Tx[7] = int(hex_value[6:],16)
-        Tx[8] = 0
-        i = 0
-        cmd_array = []
-        while i < 8:
-            Tx[8] += Tx[i]
-            cmd_array.append(Tx[i])
-            #print('byte',i,'int',Tx[i],' Checksum:',Tx[8])
-            i += 1
-        Tx[8] = ("%08x" % Tx[8])
-        #print('raw hex checksum:',Tx[8])
-        Tx[8] = int(Tx[8][-2:],16)
-        cmd_array.append(Tx[8])
-        print('hex checksum parsed int',Tx[8])
-
-        i = 0
-        ser = self._serial
-        cmd_bytes = bytearray(cmd_array)
-        print(cmd_bytes)
-        ser.write(cmd_bytes)
-
-
-        reply = ser.read(9)
-        print('reply:',reply)
-        ret_decode = self.decodeRequestCommand(reply)
-        return ret_decode
 
     def _dl_get_cal_data(self):
         # this function could be expanded to actually read the calibration data from the module, but
         # it's quicker for me to hardcode in the retrieved values instead from the LabVIEW VI.
-        #self._restore_global_parameters()
+        self._restore_global_parameters()
         self._upper_wavelength_limit = 1144.51
         self._lower_wavelength_limit = 1064.86
         # p0, p1, and p2 are polynomial coefficients that convert wavelength in nm to motor step position
@@ -388,20 +336,17 @@ class Toptica_MOTDLPro(Instrument):
         return int(step)
     def _restore_global_parameters(self):
         for i in range(34):
-            #ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 12, 20+i, 0, 0, debug = False))
-            #ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 10, 20+i, 0, 0, debug = False))
             ret = self.SendInstruction(12,20+i,0,0)
             ret = self.SendInstruction(10,20+i,0,0)
 
         return
     def reference_search(self):
-        #self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 0, 0, 0, debug = False))   # starts the reference search
-        self.SendInstruction(13,0,0,0)
+
+        self.SendInstruction(13,0,0,0) # starts the reference search
         time_start = time.time()
 
         while (time.time()-time_start < 30.0):
             time.sleep(0.2)
-            #ret_byte_array = self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 2, 0, 0, debug = False))   # checks the status of the reference search
             ret = self.SendInstruction(13,2,0,0)
             print 'return byte array is %d' % ret
             if ret == 0:
@@ -415,20 +360,20 @@ class Toptica_MOTDLPro(Instrument):
         if time.time()-time_start >= 30.0:
             logging.warning(__name__ +': reference search on initialization did not finish before timeout.')
             # this condition indicates that we probably stopped the while loop, so we abort the reference search
-            #self.tmcl_w_crc(self.encodeRequestCommand(1, 13, 1, 0, 0, debug = False))   # aborts the reference search
-            ret = self.SendInstruction(13,2,0,0)
+            ret = self.SendInstruction(13,2,0,0) # aborts the reference search
+
         return
     def do_set_wavelength(self, wavelength):
         # first calculate the step position we want to get to
         desired_step = self.convert_wavelength_to_step(wavelength)
         # now retrieve the current step position
         current_step = self.get_current_position()
-        if current_step < desired_step:
+        if current_step > desired_step:
             # if we make a movement to the left, set the desired step
             # to beyond by the "backlash" calibration parameter
             desired_step = desired_step - self._backlash
-        self.move_to_position(desired_step)
-        return self.wait_for_position(desired_step)
+        self.move_and_wait(desired_step)
+        return
 
     def do_get_wavelength(self):
         # retrieve the current step position
@@ -503,9 +448,9 @@ class Toptica_MOTDLPro(Instrument):
             # compute the checksum (just the sum of all the bytes)
             msg[-1] = numpy.sum(msg[:-1], dtype=numpy.uint8)
 
-            logging.debug("Sending %s", self._instr_to_str(msg))
             self._serial.write(msg)
             self._serial.flush()
+
             while True:
                 res = self._serial.read(9)
                 if len(res) < 9: # TODO: TimeoutError?
