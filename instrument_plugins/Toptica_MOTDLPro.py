@@ -223,6 +223,7 @@ class Toptica_MOTDLPro(Instrument):
             minval=1064.86, maxval=1144.51)
         self._target = 1
         self.add_function('reference_search')
+
     def open_device(self):
         # start the initialization of the TOPTICA MOT/DLPro.
         self._open_serial_connection()
@@ -230,9 +231,9 @@ class Toptica_MOTDLPro(Instrument):
         self._tmcl_stop_application()
         self._init_dl_pro_parameters()
         self._dl_get_cal_data()
-        #time.sleep(1)
-        #self._do_reference_search() # for some reason, the reference search does not finish here in Python but it does in LabView, even for what I think are nominally the same command sequences.
-        print 'Current position is %d' % self.get_current_position()
+        self.reference_search() # for some reason, the reference search does not finish here in Python but it does in LabView, even for what I think are nominally the same command sequences.
+        self.set_wavelength(1105.0)
+        return
 
 
 
@@ -348,7 +349,6 @@ class Toptica_MOTDLPro(Instrument):
         while (time.time()-time_start < 30.0):
             time.sleep(0.2)
             ret = self.SendInstruction(13,2,0,0)
-            print 'return byte array is %d' % ret
             if ret == 0:
                 # a return value of 0 indicates the reference search has completed
                 logging.debug(__name__ + ': reference search completed successfully.')
@@ -515,14 +515,14 @@ class Toptica_MOTDLPro(Instrument):
         byte_array = bytearray(cmd_string)
         if len(byte_array) != 9:
             print 'Length of byte array received is %d' % len(byte_array)
-            #raise TMCLError("Command string shorter than 9 bytes")
+            raise TMCLError("Command string shorter than 9 bytes")
             ret = {}
             ret['value'] = -1
             #self.buffer_clear()
             return ret
         if byte_array[8] != sum(byte_array[:8]) % (1<<8):
             print 'checksum error'
-            #raise TMCLError("Checksum error in command %s" % cmd_string)
+            raise TMCLError("Checksum error in command %s" % cmd_string)
         ret = {}
         ret['module-address'] = byte_array[0]
         ret['command-number'] = byte_array[1]
@@ -531,9 +531,7 @@ class Toptica_MOTDLPro(Instrument):
         ret['value'] = sum(b << (3-i)*8 for i,b in enumerate(byte_array[4:8]))
         ret['checksum'] = byte_array[8]
 
-        #print "".join([chr(byte_array[b]) for b in range(8)])
-        for i in range(8):
-            print 'byte %d is %d\n' %(i, byte_array[i])
+
         return ret
 
     def decodeReplyCommand(self, cmd_string):
