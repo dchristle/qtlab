@@ -2,6 +2,11 @@
 # David Christle <christle@uchicago.edu>, August 2014
 #
 
+from instrument import Instrument
+import visa
+import types
+import numpy
+import qt
 
 import ctypes
 import numpy as np
@@ -58,6 +63,18 @@ class Sacher_EPOS(Instrument):
         self._is_open = False
         self._HPM = True
 
+
+        self.add_parameter('wavelength',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            units = 'nm',
+            minval=1000.0,maxval=1060.0)
+
+        self.add_function('open')
+        self.add_function('close')
+        self.add_function('fine_tuning_steps')
+        self.add_function('get_motor_position')
+        self.add_function('set_target_position')
         #try:
         self.open()
         self.initialize()
@@ -110,7 +127,7 @@ class Sacher_EPOS(Instrument):
         buf = ctypes.pointer(DWORD(0))
         ret = ctypes.wintypes.HANDLE()
 
-        print 'types are all %s %s %s %s %s' % (type(DeviceName), type(ProtocolStackName), type(InterfaceName), type(self._port_name), type(buf))
+        #print 'types are all %s %s %s %s %s' % (type(DeviceName), type(ProtocolStackName), type(InterfaceName), type(self._port_name), type(buf))
         ret = eposlib.VCS_OpenDevice(DeviceName, ProtocolStackName, InterfaceName, self._port_name, buf)
         self._keyhandle = ret
         #print 'keyhandle is %s' % self._keyhandle
@@ -134,7 +151,7 @@ class Sacher_EPOS(Instrument):
         ret = eposlib.VCS_CloseDevice(self._keyhandle, buf)
 
 
-        print 'close device returned %s' % buf
+        #print 'close device returned %s' % buf
 
         if int(buf.contents.value) >= 0:
             self._is_open = False
@@ -246,13 +263,13 @@ class Sacher_EPOS(Instrument):
         #print 'Disable state ret %s buf %s' % (ret, buf.value)
         #print 'Final motor position is %d' % (self.get_motor_position())
         return ret
-    def get_wavelength(self):
+    def do_get_wavelength(self):
 
         self._offset = self.get_offset()
         self._currentwl = self._doubleA*(self._offset)**2.0 + self._doubleB*self._offset + self._doubleC
         return self._currentwl
 
-    def set_wavelength(self, wavelength):
+    def do_set_wavelength(self, wavelength):
         #print 'Coefficients are %s %s %s' % (self._doubleA, self._doubleB, self._doubleC)
         nodeID = ctypes.wintypes.WORD(0)
         buf = ctypes.wintypes.DWORD(0)
@@ -303,7 +320,7 @@ class Sacher_EPOS(Instrument):
         self.set_new_offset(new_motor_pos-current_motor_pos+self._offset)
 
         # Step 8, get and print current wavelength
-        #print 'Current wavelength is %.3f' % self.get_wavelength()
+        #print 'Current wavelength is %.3f' % self.do_get_wavelength()
 
         return
 
