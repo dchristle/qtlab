@@ -221,6 +221,11 @@ class Toptica_MOTDLPro(Instrument):
             type = types.FloatType,
             units = 'nm',
             minval=1064.86, maxval=1144.51)
+        self.add_parameter('position',
+            flags = Instrument.FLAG_GETSET,
+            type = types.IntType,
+            units = 'step',
+            minval=0, maxval=182215)
         self._target = 1
         self.add_function('reference_search')
 
@@ -363,6 +368,13 @@ class Toptica_MOTDLPro(Instrument):
             ret = self.SendInstruction(13,2,0,0) # aborts the reference search
 
         return
+    def do_set_position(self,step):
+        self.move_to_position(step)
+        return
+
+    def do_get_position(self):
+        return self.get_current_position()
+
     def do_set_wavelength(self, wavelength):
         # first calculate the step position we want to get to
         desired_step = self.convert_wavelength_to_step(wavelength)
