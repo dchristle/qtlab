@@ -369,7 +369,7 @@ class Toptica_MOTDLPro(Instrument):
 
         return
     def do_set_position(self,step):
-        self.move_to_position(step)
+        self.move_and_wait(step)
         return
 
     def do_get_position(self):
