@@ -80,7 +80,8 @@ class TOPTICA_DLPro(Instrument):
         self.add_parameter('piezo_voltage',
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
-            units = 'V')
+            units = 'V',
+            minval=0.0, maxval=99.0)
 
         self.add_parameter('idle_timeout',
             flags = Instrument.FLAG_GETSET,
