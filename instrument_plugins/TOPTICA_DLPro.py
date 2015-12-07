@@ -36,8 +36,8 @@ class TOPTICA_DLPro(Instrument):
         self.add_parameter('current_limit',
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
-            units = 'mA',
-            minval=0.0,maxval=316.0)
+            units = 'A',
+            minval=0.0,maxval=0.316)
 
         self.add_parameter('tec_current',
             flags = Instrument.FLAG_GETSET,
@@ -92,8 +92,8 @@ class TOPTICA_DLPro(Instrument):
         self.add_parameter('current',
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
-            units = 'mA',
-            minval=0.0,maxval=316.0)
+            units = 'A',
+            minval=0.0,maxval=0.316)
 
         self.add_parameter('temperature_setpoint',
             flags = Instrument.FLAG_GETSET,
@@ -175,7 +175,7 @@ class TOPTICA_DLPro(Instrument):
         return ret
 
     def do_set_current(self, current):
-        ret = self.query(('(param-set! \'laser1:dl:cc:current-set %.3f)' % current))
+        ret = self.query(('(param-set! \'laser1:dl:cc:current-set %.3f)' % (1000.0*float(current))))
         if ret == '\n0\r':
             return True
         else:
@@ -183,10 +183,10 @@ class TOPTICA_DLPro(Instrument):
             return False
     def do_get_current(self):
         ret = self.query('(param-ref \'laser1:dl:cc:current-set)')
-        return float(ret)
+        return float(ret)/1000.0
 
     def do_set_current_limit(self, current):
-        ret = self.query(('(param-set! \'laser1:dl:cc:current-clip %.3f)' % current))
+        ret = self.query(('(param-set! \'laser1:dl:cc:current-clip %.3f)' % (1000.0*float(current))))
         if ret == '\n0\r':
             return True
         else:
@@ -194,7 +194,7 @@ class TOPTICA_DLPro(Instrument):
             return False
     def do_get_current_limit(self):
         ret = self.query('(param-ref \'laser1:dl:cc:current-clip)')
-        return float(ret)
+        return float(ret)/1000.0
 
     def do_get_temperature_setpoint(self):
         ret = self.query('(param-ref \'laser1:dl:tc:temp-set)')
