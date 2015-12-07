@@ -90,6 +90,12 @@ class Newport_XPS(Instrument):
         logging.info(__name__ + 'Get all relevant data from device')
         for chan in 'X', 'Y', 'Z':
             self.get('abs_position%s' % chan)
+    def reboot(self):
+        [errorCode, returnString] = self._xps.Reboot(self._socketId)
+        if(errorCode != 0):
+            self._displayErrorAndClose(errorCode, 'Reboot')
+
+        return
 
 
     def _channel_to_positioner(self, channel):
