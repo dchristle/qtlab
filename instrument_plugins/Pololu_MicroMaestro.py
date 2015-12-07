@@ -70,18 +70,18 @@ class Pololu_MicroMaestro(Instrument):
     # Open serial connection
     def _open_serial_connection(self):
         logging.debug(__name__ + ' : Opening serial connection')
-        
-        qt.rm.open_resource(self._address)
-        self._visa =  qt.rm.get_instrument(self._address)
+
+        self._visa = pyvisa.visa.SerialInstrument(self._address,
+                baud_rate=19200, data_bits=8, stop_bits=1,
+                parity=pyvisa.visa.no_parity,term_chars=pyvisa.visa.CR+pyvisa.visa.LF,
+                timeout=2)
+
+
         self._visa.baud_rate = long(19200)
         self._visa.data_bits = 8
         self._visa.stop_bits = 1
         self._visa.read_termination = '\r\n'
         self._visa.write_termination = '\r\n'
-#        self._visa = pyvisa.visa.SerialInstrument(self._address,
-#                baud_rate=19200, data_bits=8, stop_bits=1,
-#                parity=pyvisa.visa.no_parity,term_chars=pyvisa.visa.CR+pyvisa.visa.LF,
-#                timeout=2)
 
 
     # Close serial connection
@@ -150,7 +150,7 @@ class Pololu_MicroMaestro(Instrument):
         thestring = "\xAA\x0C\x09" + chr(int(channel)) + chr(byte1_string) + chr(byte2_string)
         if self._crcon:
             thestring = thestring + chr(self.crc7(thestring))
-        self._visa.write(bytes(thestring),encoding='ascii')
+        self._visa.write(bytes(thestring))
 
 
     def do_set_target(self, target, channel):
@@ -161,7 +161,7 @@ class Pololu_MicroMaestro(Instrument):
         thestring = "\xAA\x0C\x04" + chr(int(channel)) + chr(byte1_string) + chr(byte2_string)
         if self._crcon:
             thestring = thestring + chr(self.crc7(thestring))
-        self._visa.write(bytes(thestring),encoding='ascii')
+        self._visa.write(bytes(thestring))
         time.sleep(1.0)
         byte1_string = int(hex(int(4*target)),16) & 0x7F
         byte2_string = (int(hex(int(4*target)),16) >> 7) & 0x7F
