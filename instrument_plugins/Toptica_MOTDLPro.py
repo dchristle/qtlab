@@ -228,11 +228,13 @@ class Toptica_MOTDLPro(Instrument):
             minval=0, maxval=182215)
         self._target = 1
         self.add_function('reference_search')
+        self.open_device()
+
 
     def open_device(self):
         # start the initialization of the TOPTICA MOT/DLPro.
         self._open_serial_connection()
-
+        logging.debug(__name__ + ': Toptica Motor device opened.')
         self._tmcl_stop_application()
         self._init_dl_pro_parameters()
         self._dl_get_cal_data()
