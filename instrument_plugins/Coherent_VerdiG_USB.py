@@ -32,11 +32,11 @@ class Coherent_VerdiG_USB(Instrument):
 #        self.add_function('optimize_LBO')
 #        self.add_function('optimize_diodes')
 
-        self.add_parameter('tgt_power',
+        self.add_parameter('power',
             type=types.FloatType, units='W', format='%.04f',
             flags=Instrument.FLAG_GETSET, minval=0, maxval=7.05,
             maxstep=0.25, stepdelay=5000)
-        self.add_parameter('output_power',
+        self.add_parameter('actual_power',
             type=types.FloatType, units='W', format='%.03f',
             flags=Instrument.FLAG_GET)
         self.add_parameter('cmode',
@@ -87,8 +87,8 @@ class Coherent_VerdiG_USB(Instrument):
         self.get_Tetalon()
         self.get_headhours()
         self.get_cmode()
-        self.get_output_power()
-        self.get_tgt_power()
+        self.get_actual_power()
+        self.get_power()
         self.get_REM()
         self.get_kswcmd()
         self.get_faultcode()
@@ -147,7 +147,7 @@ class Coherent_VerdiG_USB(Instrument):
         logging.debug(__name__ + ': Response is: %s' % rsp_buf.value)
         return rsp_buf.value
 
-    def do_get_output_power(self):
+    def do_get_actual_power(self):
         s = self._query('?P')
         return float(s)
 
@@ -184,11 +184,11 @@ class Coherent_VerdiG_USB(Instrument):
 
         return True
 
-    def do_get_tgt_power(self):
+    def do_get_power(self):
         s = self._query('?PCMD')
         return float(s)
 
-    def do_set_tgt_power(self, p):
+    def do_set_power(self, p):
         # Power is in Watts here
         self._query('PCMD=%.04f' % p)
         return True
