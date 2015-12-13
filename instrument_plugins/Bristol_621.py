@@ -1,4 +1,4 @@
-# Bristol_621.py - Instrument plugin to communicate with a Bristol 621 
+# Bristol_621.py - Instrument plugin to communicate with a Bristol 621
 # wavelengthmeter
 # Gabriele de Boo <g.deboo@student.unsw.edu.au>
 #
@@ -21,8 +21,8 @@ import types
 import logging
 from ctypes import *
 
-CLDevIFace = cdll.CLDevIFace
-
+#CLDevIFace = cdll.CLDevIFace
+CLDevIFace = cdll.LoadLibrary('C:\\measuring\\qtlab\\instrument_plugins\\_Bristol621A\\CLDevIFace.dll')
 CLOpenUSBSerialDevice = CLDevIFace.CLOpenUSBSerialDevice
 CLOpenUSBSerialDevice.restype = c_long
 CLCloseDevice = CLDevIFace.CLCloseDevice
