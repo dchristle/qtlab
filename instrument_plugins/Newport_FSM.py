@@ -63,28 +63,12 @@ class Newport_FSM(Instrument):
             flags=Instrument.FLAG_SET|Instrument.FLAG_SOFTGET,
             units='um',
             format='%.04f')
-        self.add_parameter('speed',
-            type=types.TupleType,
-            units='V/s',
-            flags=Instrument.FLAG_SET|Instrument.FLAG_SOFTGET,
-            format='%.1f, %.01f')
+
 
         # Instrument functions
         self.add_function('zero')
         self.add_function('move')
 
-
-
-
-
-    def do_set_speed(self, val):
-        print 'Setting speed to %r' % (val, )
-
-    def start(self):
-        print 'Starting'
-
-    def stop(self):
-        print 'Stopping'
 
     def move(self, Xcoord, Ycoord):
         self.set_abs_positionX(Xcoord)
