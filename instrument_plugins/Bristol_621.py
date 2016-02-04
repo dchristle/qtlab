@@ -57,7 +57,7 @@ class Bristol_621(Instrument):
                 units='mW')
 
         self.add_function('close_device')
-
+        self.add_function('get_frequency')
         if reset:
             self.reset()
         else:
@@ -80,7 +80,18 @@ class Bristol_621(Instrument):
         while wavelength == None:
             wavelength = CLGetLambdaReading(c_int(self.devHandle))
         logging.debug('Measured wavelength is %s.' % wavelength)
+        if wavelength == 0.0 or wavelength == -1.0:
+            logging.error(__name__ + ': did not retrieve a physical wavelength from wavemeter. Check input power.')
+            return -1.0
+
         return wavelength
+
+    def get_frequency(self):
+        wavelength = self.get_wavelength()
+        if wavelength != 0.0 and wavelength != -1.0:
+            return 299792458.0/wavelength
+        else:
+            return -1.0
 
     def do_get_power(self):
         power = CLGetPowerReading(c_int(self.devHandle))
@@ -89,4 +100,4 @@ class Bristol_621(Instrument):
 
     def close_device(self):
         if (CLCloseDevice(c_int(self.devHandle)) != 0):
-            logging.warning('%s: Closing device was unsuccesfull.' % self.name)
+            logging.warning(__name__ + ': Closing device was unsuccessful.')
