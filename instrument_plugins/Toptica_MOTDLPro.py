@@ -228,6 +228,8 @@ class Toptica_MOTDLPro(Instrument):
             minval=0, maxval=182215)
         self._target = 1
         self.add_function('reference_search')
+        self.add_function('close_device')
+        self.add_function('open_device')
         self.open_device()
 
 
@@ -399,6 +401,14 @@ class Toptica_MOTDLPro(Instrument):
     def get_current_position(self):
         ret = self.SendInstruction(6,1,0,0)
         return ret
+    def high_precision_move(self, step):
+        if step > 10000:
+			self.set_position(step-10000)
+        else:
+			self.set_position(0)
+
+        self.set_position(step)
+        return
 
     def move_and_wait(self,step):
         self.move_to_position(step)
@@ -414,6 +424,7 @@ class Toptica_MOTDLPro(Instrument):
             logging.error(__name__ + ': step had to be coerced to 0.')
 
         ret = self.SendInstruction(4,0,0,int(step))
+        time.sleep(0.005)
         return
     def wait_for_position(self, step):
         if step > 800000:
