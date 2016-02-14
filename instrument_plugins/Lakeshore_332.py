@@ -94,6 +94,7 @@ class Lakeshore_332(Instrument):
 
         self.add_function('local')
         self.add_function('remote')
+        self.add_function('check_heater')
 
         if reset:
             self.reset()
@@ -124,17 +125,17 @@ class Lakeshore_332(Instrument):
 
     def do_get_heater_range(self):
         ans = self._visa.ask('RANGE?')
-        if ans == '0':
-            print 'OFF'
-        elif ans == '1':
-            print 'LOW'
-        elif ans == '2':
-            print 'MED'
-        elif ans == '3':
-            print 'HIGH'
-        else:
-            print 'HEATER NOT RESPONDING CORRECTLY'
-        #return ans
+        # if ans == '0':
+        #     return 'OFF'
+        # elif ans == '1':
+        #     return 'LOW'
+        # elif ans == '2':
+        #     return 'MED'
+        # elif ans == '3':
+        #     return 'HIGH'
+        # else:
+        #     print 'HEATER NOT RESPONDING CORRECTLY'
+        return int(ans)
 
     def do_set_heater_range(self, val):
         self._visa.write('RANGE %d' % val)
@@ -187,3 +188,17 @@ class Lakeshore_332(Instrument):
 
     def do_set_cmode(self, val, channel):
         self._visa.write('CMODE %s,%f' % (channel, val))
+
+    def check_heater(self):
+        chp = self.get_heater_output()
+        if chp > 0.0:
+            return
+        ctmp = self.get_kelvinA()
+        cstp = self.get_setpoint1()
+        crng = self.get_heater_range()
+        if (ctmp < cstp):
+            self.set_heater_range('off')
+            time.sleep(0.25)
+            self.set_heater_range(crng)
+            logging.warning(__name__ + ': reset heater after output was zero.')
+        return
