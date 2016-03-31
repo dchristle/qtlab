@@ -49,10 +49,10 @@ class Lakeshore_455(Instrument):
 ##            type=types.FloatType,
 ##            units='%')
 ##
-##        self.add_parameter('mode',
-##            flags=Instrument.FLAG_GETSET,
-##            type=types.IntType,
-##            format_map={1: 'Local', 2: 'Remote', 3: 'Remote, local lock'})
+        self.add_parameter('mode',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType,
+            format_map={1: 'Local', 2: 'Remote', 3: 'Remote, local lock'})
 ##
 ##        self.add_parameter('pid',
 ##            flags=Instrument.FLAG_GETSET,
@@ -82,24 +82,7 @@ class Lakeshore_455(Instrument):
     def do_get_identification(self):
         return self._visa.ask('*IDN?')
 
-    def do_get_kelvin(self):
-        ans = self._visa.ask('RDGFIELD?')
-        return float(ans)
 
-    def do_get_sensor(self, channel):
-        ans = self._visa.ask('SRDG? %s' % channel)
-        return float(ans)
-
-    def do_get_heater_range(self):
-        ans = self._visa.ask('RANGE?')
-        return ans
-
-    def do_set_heater_range(self, val):
-        self._visa.write('RANGE %d' % val)
-
-    def do_get_heater_output(self):
-        ans = self._visa.ask('HTR?')
-        return ans
 
     def do_get_mode(self):
         ans = self._visa.ask('MODE?')
@@ -114,20 +97,6 @@ class Lakeshore_455(Instrument):
     def remote(self):
         self.set_mode(2)
 
-    def do_get_pid(self, channel):
-        ans = self._visa.ask('PID? %d' % channel)
-        fields = ans.split(',')
-        if len(fields) != 3:
-            return None
-        fields = [float(f) for f in fields]
-        return fields
-
-    def do_set_pid(self, val, channel):
-        pass
-
-    def do_get_setpoint(self, channel):
-        ans = self._visa.ask('SETP? %s' % channel)
+    def do_get_field(self):
+        ans = self._visa.ask('RDGFIELD?')
         return float(ans)
-
-    def do_set_setpoint(self, val, channel):
-        self._visa.write('SETP %s, %f' % (channel, val))
