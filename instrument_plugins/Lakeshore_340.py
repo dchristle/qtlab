@@ -81,6 +81,7 @@ class Lakeshore_340(Instrument):
         self.add_function('local')
         self.add_function('remote')
 
+
         if reset:
             self.reset()
         else:
@@ -137,7 +138,9 @@ class Lakeshore_340(Instrument):
         return fields
         
     def do_set_pid(self, val, channel):
-        pass
+        pid_f = [float(f) for f in val]
+        ans = self._visa.write('PID %d, %.1f, %.1f, %.1f' % (channel, pid_f[0], pid_f[1], pid_f[2]))
+        return
         
     def do_get_setpoint(self, channel):
         ans = self._visa.ask('SETP? %s' % channel)
@@ -145,4 +148,4 @@ class Lakeshore_340(Instrument):
         
     def do_set_setpoint(self, val, channel):
         self._visa.write('SETP %s, %f' % (channel, val))
-        
+

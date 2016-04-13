@@ -166,7 +166,9 @@ class Lakeshore_332(Instrument):
         return fields
 
     def do_set_pid(self, val, channel):
-        pass
+        pid_f = [float(f) for f in val]
+        ans = self._visa.write('PID %d, %.1f, %.1f, %.1f' % (channel, pid_f[0], pid_f[1], pid_f[2]))
+        return
 
     def do_get_setpoint(self, channel):
         ans = self._visa.ask('SETP? %s' % channel)
