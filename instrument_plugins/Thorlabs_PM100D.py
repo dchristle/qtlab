@@ -39,6 +39,10 @@ class Thorlabs_PM100D(Instrument):
             type=types.FloatType,
             units='W')
 
+        self.add_parameter('num_avgs',
+            flags=Instrument.FLAG_GETSET,
+            type=types.IntType)
+
         self.add_parameter('head_info',
             flags=Instrument.FLAG_GET,
             type=types.StringType)
@@ -79,4 +83,9 @@ class Thorlabs_PM100D(Instrument):
     def do_set_wavelength(self, val):
         valnm=val*1e9
         self._visa.write('CORR:WAV %e' % valnm)
+    def do_get_num_avgs(self):
+        return self._visa.ask('SENS:AVER?')
+    def do_set_num_avgs(self, navgs):
+        self._visa.write(('SENS:AVER %d' % navgs))
+        return
 
