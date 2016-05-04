@@ -355,8 +355,8 @@ class Toptica_MOTDLPro(Instrument):
         self.SendInstruction(13,0,0,0) # starts the reference search
         time_start = time.time()
 
-        while (time.time()-time_start < 30.0):
-            time.sleep(0.2)
+        while (time.time()-time_start < 45.0):
+            time.sleep(1)
             ret = self.SendInstruction(13,2,0,0)
             if ret == 0:
                 # a return value of 0 indicates the reference search has completed
@@ -366,7 +366,7 @@ class Toptica_MOTDLPro(Instrument):
 
 
             # if the reference search status returns a value other than 0, the search is still ongoing
-        if time.time()-time_start >= 30.0:
+        if time.time()-time_start >= 45.0:
             logging.warning(__name__ +': reference search on initialization did not finish before timeout.')
             # this condition indicates that we probably stopped the while loop, so we abort the reference search
             ret = self.SendInstruction(13,2,0,0) # aborts the reference search
