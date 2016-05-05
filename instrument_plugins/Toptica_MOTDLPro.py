@@ -401,13 +401,24 @@ class Toptica_MOTDLPro(Instrument):
     def get_current_position(self):
         ret = self.SendInstruction(6,1,0,0)
         return ret
-    def high_precision_move(self, step):
-        if step > 10000:
-			self.set_position(step-10000)
-        else:
-			self.set_position(0)
+    def high_precision_move(self, step, direction = 1):
+        if direction == 1:
+            if step > 10000:
+                self.set_position(step-10000)
+            else:
+                self.set_position(0)
 
-        self.set_position(step)
+            self.set_position(step)
+        elif direction == 0:
+            if step < 172000:
+                self.set_position(step+10000)
+            else:
+                self.set_position(182000)
+
+            self.set_position(step)
+        else:
+            logging.warning(__name__ + ': improper direction argument to high_precision_move function of the MOTDL. Doing standard move to position.')
+            self.set_position(step)
         return
 
     def move_and_wait(self,step):
