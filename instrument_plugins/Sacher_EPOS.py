@@ -68,7 +68,7 @@ class Sacher_EPOS(Instrument):
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
             units = 'nm',
-            minval=1000.0,maxval=1060.0)
+            minval=1070.0,maxval=1180.0)
 
         self.add_function('open')
         self.add_function('close')
