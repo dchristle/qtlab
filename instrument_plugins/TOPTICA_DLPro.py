@@ -89,6 +89,19 @@ class TOPTICA_DLPro(Instrument):
             units = 's',
             minval = 0 )
 
+
+        self.add_parameter('tc_current',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            units = 'mA',
+            minval = -5.0,
+            maxval = 5.0)
+
+        self.add_parameter('tc_current_actual',
+            flags = Instrument.FLAG_GET,
+            type = types.FloatType,
+            units = 'mA')
+
         self.add_parameter('current',
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
@@ -399,6 +412,24 @@ class TOPTICA_DLPro(Instrument):
     def do_get_piezo_voltage(self):
         ret = self.query('(param-ref \'laser1:dl:pc:voltage-set)')
         return float(ret)
+
+    def do_set_tc_current(self, current):
+        ret = self.query(('(param-set! \'laser1:dl:tc:current-set %.3f)' % current))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set tc current returned string:%r' % ret)
+            return False
+        return
+
+    def do_get_tc_current(self):
+        ret = self.query(('(param-ref \'laser1:dl:tc:current-set)'))
+        return float(ret)
+
+    def do_get_tc_current_actual(self):
+        ret = self.query(('(param-ref \'laser1:dl:tc:current-act)'))
+        return float(ret)
+
 
 
 
