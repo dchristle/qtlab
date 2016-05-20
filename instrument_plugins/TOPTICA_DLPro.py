@@ -89,7 +89,6 @@ class TOPTICA_DLPro(Instrument):
             units = 's',
             minval = 0 )
 
-
         self.add_parameter('tc_current',
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
@@ -122,6 +121,28 @@ class TOPTICA_DLPro(Instrument):
         self.add_parameter('emission',
             flags = Instrument.FLAG_GET,
             type = types.StringType)
+
+        # enables external input as the control voltage for the piezo
+        self.add_parameter('external_input',
+            flags = Instrument.FLAG_GETSET,
+            type = types.BooleanType)
+
+        # output channel for the scan voltage
+        self.add_parameter('external_input_signal',
+            flags = Instrument.FLAG_GETSET,
+            type = types.IntType)
+
+        # analog multiplier for external control
+        self.add_parameter('external_input_factor',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            minval = 0.0, maxval = 17.5)
+
+        # output channel for the scan voltage
+        self.add_parameter('scan_output',
+            flags = Instrument.FLAG_GETSET,
+            type = types.IntType)
+
 
         self.add_function('on')
         self.add_function('off')
@@ -260,12 +281,11 @@ class TOPTICA_DLPro(Instrument):
             logging.error(__name__ + ': set idle timeout returned string:%r' % ret)
             return False
     def do_get_idle_timeout(self):
-
         ret = self.query(('(param-ref \'display:idle-timeout)'))
         return int(ret)
 
-    def do_set_feedforward(self, setting):
 
+    def do_set_feedforward(self, setting):
         if setting == True:
             set_string = '#t'
         elif setting == False:
@@ -279,10 +299,10 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': set feedforward returned string:%r' % ret)
             return False
+
+
     def do_get_feedforward(self):
-
         ret = self.query(('(param-ref \'laser1:dl:cc:feedforward-enabled)'))
-
         if ret == '\n#t\r':
             return True
         elif ret == '\n#f\r':
@@ -290,6 +310,7 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + (': received unknown reply %s from get_feedforward' % ret))
             return
+
 
     def do_set_feedforward_factor(self, ff):
         ret = self.query(('(param-set! \'laser1:dl:cc:feedforward-factor %.3f)' % ff))
@@ -301,6 +322,7 @@ class TOPTICA_DLPro(Instrument):
     def do_get_feedforward_factor(self):
         ret = self.query('(param-ref \'laser1:dl:cc:feedforward-factor)')
         return float(ret)
+
 
     def do_set_t_loop(self, setting):
 
@@ -318,9 +340,7 @@ class TOPTICA_DLPro(Instrument):
             logging.error(__name__ + ': set temperature PID loop returned string:%r' % ret)
             return False
     def do_get_t_loop(self):
-
         ret = self.query(('(param-ref \'laser1:dl:tc:enabled)'))
-
         if ret == '\n#t\r':
             return True
         elif ret == '\n#f\r':
@@ -348,6 +368,7 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': set i gain returned string:%r' % ret)
             return False
+
     def do_get_igain(self):
         ret = self.query('(param-ref \'laser1:dl:tc:t-loop:i-gain)')
         return float(ret)
@@ -359,6 +380,7 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': set d gain returned string:%r' % ret)
             return False
+
     def do_get_dgain(self):
         ret = self.query('(param-ref \'laser1:dl:tc:t-loop:d-gain)')
         return float(ret)
@@ -370,12 +392,12 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': set TEC current returned string:%r' % ret)
             return False
+
     def do_get_tec_current(self):
         ret = self.query('(param-ref \'laser1:dl:tc:current-act)')
         return float(ret)
 
     def do_set_piezo(self, setting):
-
         if setting == True:
             set_string = '#t'
         elif setting == False:
@@ -389,10 +411,9 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': set feedforward returned string:%r' % ret)
             return False
+
     def do_get_piezo(self):
-
         ret = self.query(('(param-ref \'laser1:dl:pc:enabled)'))
-
         if ret == '\n#t\r':
             return True
         elif ret == '\n#f\r':
@@ -420,7 +441,6 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': set tc current returned string:%r' % ret)
             return False
-        return
 
     def do_get_tc_current(self):
         ret = self.query(('(param-ref \'laser1:dl:tc:current-set)'))
@@ -430,6 +450,66 @@ class TOPTICA_DLPro(Instrument):
         ret = self.query(('(param-ref \'laser1:dl:tc:current-act)'))
         return float(ret)
 
+    def do_set_external_input_factor(self, ff):
+        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:factor %.3f)' % ff))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set feedforward factor string:%r' % ret)
+            return False
+
+    def do_get_external_input_factor(self):
+        ret = self.query('(param-ref \'laser1:dl:cc:external-input:factor)')
+        return float(ret)
+
+    def do_set_external_input(self, setting):
+        if setting == True:
+            set_string = '#t'
+        elif setting == False:
+            set_string = '#f'
+        else:
+            logging.error(__name__ + ': received improper set string when trying to set external input enabled/disabled.')
+            set_string = '#f'
+        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:enabled %s)' % set_string))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set external input returned string:%r' % ret)
+            return False
+
+    def do_get_external_input(self):
+        ret = self.query(('(param-ref \'laser1:dl:cc:external-input:enabled)'))
+        if ret == '\n#t\r':
+            return True
+        elif ret == '\n#f\r':
+            return False
+        else:
+            logging.error(__name__ + (': received unknown reply %s from get_external_input' % ret))
+            return
+
+    def do_set_external_input_signal(self, ff):
+        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:signal %d)' % int(ff)))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set scan output channel string: %r' % ret)
+            return False
+
+    def do_get_external_input_signal(self):
+        ret = self.query('(param-ref \'laser1:dl:cc:external-input:signal)')
+        return int(ret)
+
+    def do_set_scan_output(self, ff):
+        ret = self.query(('(param-set! \'laser1:scan:output-channel %d)' % int(ff)))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set scan output channel string: %r' % ret)
+            return False
+
+    def do_get_scan_output(self):
+        ret = self.query('(param-ref \'laser1:scan:output-channel)')
+        return int(ret)
 
 
 
