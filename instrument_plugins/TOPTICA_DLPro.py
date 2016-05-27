@@ -81,7 +81,8 @@ class TOPTICA_DLPro(Instrument):
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
             units = 'V',
-            minval=0.0, maxval=99.0)
+            minval=0.0, maxval=99.0,
+            maxstep=1.25, stepdelay=166)
 
         self.add_parameter('idle_timeout',
             flags = Instrument.FLAG_GETSET,
@@ -143,6 +144,23 @@ class TOPTICA_DLPro(Instrument):
             flags = Instrument.FLAG_GETSET,
             type = types.IntType)
 
+        # scan frequency in Hz
+        self.add_parameter('scan_frequency',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            units = 'Hz')
+
+        # scan offset voltage
+        self.add_parameter('scan_offset',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            units = 'V')
+
+        # scan amplitude voltage
+        self.add_parameter('scan_amplitude',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            units = 'V')
 
         self.add_function('on')
         self.add_function('off')
@@ -435,7 +453,7 @@ class TOPTICA_DLPro(Instrument):
         return float(ret)
 
     def do_set_tc_current(self, current):
-        ret = self.query(('(param-set! \'laser1:dl:tc:current-set %.3f)' % current))
+        ret = self.query(('(param-set! \'laser1:dl:tc:current-set %.4f)' % current))
         if ret == '\n0\r':
             return True
         else:
@@ -451,7 +469,7 @@ class TOPTICA_DLPro(Instrument):
         return float(ret)
 
     def do_set_external_input_factor(self, ff):
-        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:factor %.3f)' % ff))
+        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:factor %.4f)' % float(ff)))
         if ret == '\n0\r':
             return True
         else:
@@ -511,7 +529,41 @@ class TOPTICA_DLPro(Instrument):
         ret = self.query('(param-ref \'laser1:scan:output-channel)')
         return int(ret)
 
+    def do_get_scan_frequency(self):
+        ret = self.query('(param-ref \'laser1:scan:frequency)')
+        return float(ret)
 
+    def do_set_scan_frequency(self, ff):
+        ret = self.query(('(param-set! \'laser1:scan:frequency %.4f)' % float(ff)))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set scan frequency returned string: %r' % ret)
+            return False
+
+    def do_get_scan_offset(self):
+        ret = self.query('(param-ref \'laser1:scan:offset)')
+        return float(ret)
+
+    def do_set_scan_offset(self, ff):
+        ret = self.query(('(param-set! \'laser1:scan:offset %.4f)' % float(ff)))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set scan offset returned string: %r' % ret)
+            return False
+
+    def do_get_scan_amplitude(self):
+        ret = self.query('(param-ref \'laser1:scan:amplitude)')
+        return float(ret)
+
+    def do_set_scan_amplitude(self, ff):
+        ret = self.query(('(param-set! \'laser1:scan:amplitude %.4f)' % float(ff)))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set scan offset returned string: %r' % ret)
+            return False
 
     def get_all(self):
         return
