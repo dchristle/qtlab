@@ -183,6 +183,27 @@ class NI_DAQ(Instrument):
 
         return array_out
 
+    def read_array_analog_window(self, samples, trigchan, freq, window_top, window_bottom, minv, maxv,
+                timeout, channel):
+        # This routine allows for triggering off of an analog signal within a window, unlike the standard
+        # readarray method. The code here should be cleaned up but I don't want to change the formatting of readarray
+        # to something more clear like "read_array_digital" because it will break the FSM and Fabry Perot codes that
+        # use that function.
+        devchan = '%s/%s' % (self._id, channel)
+        array_out = nidaq.read_array_analog_window(devchan, trigchan, samples, freq, window_top, window_bottom, minv, maxv, timeout)
+
+        return array_out
+
+    def read_array_analog(self, samples, trigchannel, freq, trigger_level, minv, maxv,
+                timeout, channel):
+        # This routine allows triggering off an analog signal's rising edge; a falling edge could be triggered off of
+        # by changing the hardcoding or defining a newer function. Specifically, when the voltage rises across the
+        # voltage set by "trigger_level", it will start reading.
+        devchan = '%s/%s' % (self._id, channel)
+        trigchan = '%s' % (trigchannel)
+        array_out = nidaq.read_array_analog(devchan, trigchan, samples, freq, trigger_level, minv, maxv, timeout)
+
+        return array_out
     # Dummy
     def do_set_counter_src(self, val, channel):
 
