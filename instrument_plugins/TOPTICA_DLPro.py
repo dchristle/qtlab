@@ -84,6 +84,12 @@ class TOPTICA_DLPro(Instrument):
             minval=0.0, maxval=99.0,
             maxstep=1.25, stepdelay=166)
 
+        self.add_parameter('piezo_voltage_max',
+            flags = Instrument.FLAG_GETSET,
+            type = types.FloatType,
+            units = 'V',
+            minval = 0.0, maxval = 99.0)
+
         self.add_parameter('idle_timeout',
             flags = Instrument.FLAG_GETSET,
             type = types.IntType,
@@ -138,6 +144,11 @@ class TOPTICA_DLPro(Instrument):
             flags = Instrument.FLAG_GETSET,
             type = types.FloatType,
             minval = 0.0, maxval = 17.5)
+
+        # scan enabled or not
+        self.add_parameter('scan_enabled',
+            flags = Instrument.FLAG_GETSET,
+            type = types.BooleanType)
 
         # output channel for the scan voltage
         self.add_parameter('scan_output',
@@ -452,6 +463,18 @@ class TOPTICA_DLPro(Instrument):
         ret = self.query('(param-ref \'laser1:dl:pc:voltage-set)')
         return float(ret)
 
+    def do_get_piezo_voltage_max(self):
+        ret = self.query('(param-ref \'laser1:dl:pc:voltage-max)')
+        return float(ret)
+
+    def do_set_piezo_voltage_max(self, ff):
+        ret = self.query(('(param-set! \'laser1:dl:pc:voltage-max %.4f)' % float(ff)))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set piezo voltage max returned string: %r' % ret)
+            return False
+
     def do_set_tc_current(self, current):
         ret = self.query(('(param-set! \'laser1:dl:tc:current-set %.4f)' % current))
         if ret == '\n0\r':
@@ -469,7 +492,7 @@ class TOPTICA_DLPro(Instrument):
         return float(ret)
 
     def do_set_external_input_factor(self, ff):
-        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:factor %.4f)' % float(ff)))
+        ret = self.query(('(param-set! \'laser1:dl:pc:external-input:factor %.4f)' % float(ff)))
         if ret == '\n0\r':
             return True
         else:
@@ -477,7 +500,7 @@ class TOPTICA_DLPro(Instrument):
             return False
 
     def do_get_external_input_factor(self):
-        ret = self.query('(param-ref \'laser1:dl:cc:external-input:factor)')
+        ret = self.query('(param-ref \'laser1:dl:pc:external-input:factor)')
         return float(ret)
 
     def do_set_external_input(self, setting):
@@ -488,7 +511,7 @@ class TOPTICA_DLPro(Instrument):
         else:
             logging.error(__name__ + ': received improper set string when trying to set external input enabled/disabled.')
             set_string = '#f'
-        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:enabled %s)' % set_string))
+        ret = self.query(('(param-set! \'laser1:dl:pc:external-input:enabled %s)' % set_string))
         if ret == '\n0\r':
             return True
         else:
@@ -496,7 +519,7 @@ class TOPTICA_DLPro(Instrument):
             return False
 
     def do_get_external_input(self):
-        ret = self.query(('(param-ref \'laser1:dl:cc:external-input:enabled)'))
+        ret = self.query(('(param-ref \'laser1:dl:pc:external-input:enabled)'))
         if ret == '\n#t\r':
             return True
         elif ret == '\n#f\r':
@@ -506,7 +529,7 @@ class TOPTICA_DLPro(Instrument):
             return
 
     def do_set_external_input_signal(self, ff):
-        ret = self.query(('(param-set! \'laser1:dl:cc:external-input:signal %d)' % int(ff)))
+        ret = self.query(('(param-set! \'laser1:dl:pc:external-input:signal %d)' % int(ff)))
         if ret == '\n0\r':
             return True
         else:
@@ -514,8 +537,34 @@ class TOPTICA_DLPro(Instrument):
             return False
 
     def do_get_external_input_signal(self):
-        ret = self.query('(param-ref \'laser1:dl:cc:external-input:signal)')
+        ret = self.query('(param-ref \'laser1:dl:pc:external-input:signal)')
         return int(ret)
+
+    def do_set_scan_enabled(self, setting):
+        if setting == True:
+            set_string = '#t'
+        elif setting == False:
+            set_string = '#f'
+        else:
+            logging.error(__name__ + ': received improper set string when trying to set scan_enabled to enabled/disabled.')
+            set_string = '#f'
+        ret = self.query(('(param-set! \'laser1:scan:enabled %s)' % set_string))
+        if ret == '\n0\r':
+            return True
+        else:
+            logging.error(__name__ + ': set scan enabled returned string:%r' % ret)
+            return False
+
+    def do_get_scan_enabled(self):
+        ret = self.query(('(param-ref \'laser1:scan:enabled)'))
+        if ret == '\n#t\r':
+            return True
+        elif ret == '\n#f\r':
+            return False
+        else:
+            logging.error(__name__ + (': received unknown reply %s from get_scan_enabled' % ret))
+            return
+
 
     def do_set_scan_output(self, ff):
         ret = self.query(('(param-set! \'laser1:scan:output-channel %d)' % int(ff)))
